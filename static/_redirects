@@ -1,0 +1,4 @@
+# Cloudflare Pages SPA fallback: serve the app shell (index.html) for any path that
+# isn't a static asset, so client-side routes like /melden/<token> and /verwalten/* resolve
+# instead of 404ing. The 200 keeps the original URL in the address bar.
+/*  /index.html  200

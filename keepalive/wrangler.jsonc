@@ -1,0 +1,23 @@
+{
+	// Keep-alive Worker for the seasonal Supabase free-tier project. Supabase pauses a free
+	// project after ~7 days with no requests; this Worker pings a lightweight anon read on a
+	// daily cron so the project stays awake between camps. It must live OUTSIDE Supabase — an
+	// internal pg_cron job stops running once the project itself is paused.
+	"name": "zelt-keepalive",
+	"main": "src/index.ts",
+	"compatibility_date": "2026-06-22",
+	// Cron-only Worker — no public HTTP route needed, so don't publish a workers.dev URL.
+	// (The fetch handler in src/index.ts is for local `wrangler dev` verification only.)
+	"workers_dev": false,
+	"triggers": {
+		// Daily at 06:00 UTC. Well inside the ~7-day pause window, so a single missed run is harmless.
+		"crons": ["0 6 * * *"]
+	},
+	"observability": { "enabled": true },
+	"vars": {
+		"SUPABASE_URL": "https://kzlmbkadbzfhqzhaupiu.supabase.co",
+		// The public anon key (same one baked into the client build). Reads only active categories,
+		// which RLS already exposes to anon — nothing sensitive here.
+		"SUPABASE_ANON_KEY": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imt6bG1ia2FkYnpmaHF6aGF1cGl1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODIxMzAzMzcsImV4cCI6MjA5NzcwNjMzN30.DJzfLrE24CFQM_J-GWLVjcjVrqYtJKpMu3YcrVCnVMA"
+	}
+}

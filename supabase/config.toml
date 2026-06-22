@@ -1,0 +1,12 @@
+# Minimal Supabase CLI config. `project_id` is set on `supabase link`.
+project_id = "zelt"
+
+# The analytics stack (logflare + vector) bind-mounts the Docker socket, which fails under
+# Colima. We don't need local log analytics, so disable it to let the stack boot.
+[analytics]
+enabled = false
+
+[functions.melden]
+# The reporter is anonymous and gated by REPORTER_TOKEN inside the function, so the platform
+# JWT check is disabled — the endpoint is intentionally public-but-token-guarded.
+verify_jwt = false
