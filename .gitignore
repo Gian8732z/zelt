@@ -14,3 +14,9 @@ node_modules
 
 # Claude Code local settings + worktrees
 .claude/
+
+# Local design scratch (large reference/export files, not part of the app)
+/Group*.svg
+/[Gg]roup*.zip
+/ref.png
+/vorzelt_orange.png
