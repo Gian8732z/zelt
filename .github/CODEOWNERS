@@ -1,0 +1,27 @@
+# Code owners for HIGH-RISK paths. A PR touching any of these requires @Gian8732z's review
+# (branch protection: "require review from Code Owners") and so is NOT eligible for auto-merge —
+# it waits for a human. Everything else auto-merges once the `gate` CI check is green.
+#
+# Tiers mirror the security boundary + reporter write paths (see CLAUDE.md). Keep in sync if the
+# layout moves. Last matching pattern wins, but every entry maps to the same owner here.
+
+# Schema + the melden/zelt-info trust boundary
+/supabase/migrations/                   @Gian8732z
+/supabase/functions/                    @Gian8732z
+
+# Reporter write / sync / photo path + the Supabase client and bundled token
+/src/lib/submit.ts                      @Gian8732z
+/src/lib/outbox.ts                      @Gian8732z
+/src/lib/photo.ts                       @Gian8732z
+/src/lib/supabase.ts                    @Gian8732z
+/src/lib/config.ts                      @Gian8732z
+# melden hand-mirrors this component->mode map; a desync is a silent prod break
+/src/lib/damage-types.ts                @Gian8732z
+
+# The reporter form itself + manager auth guard / login
+/src/routes/zelt/                       @Gian8732z
+/src/routes/verwalten/+layout.svelte    @Gian8732z
+/src/routes/verwalten/anmelden/         @Gian8732z
+
+# The pipeline + this ownership file
+/.github/                               @Gian8732z
