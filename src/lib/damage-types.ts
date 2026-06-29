@@ -89,3 +89,35 @@ export function snapshotLabel(component: string, kind: string): string {
 export function isValidDamage(component: string, kind: string): boolean {
 	return !!damageMode(component, kind);
 }
+
+// ---------------------------------------------------------------------------
+// Severity helpers — appended; do not modify exports above this line.
+// ---------------------------------------------------------------------------
+
+const HIGH_PAIRS = new Set([
+	'aussenzelt/stoff_gerissen',
+	'aussenzelt/fehlt',
+	'innenzelt/stoff_gerissen',
+	'innenzelt/boden_gerissen',
+	'innenzelt/fehlt',
+	'stangen/verbogen',
+	'stangen/fehlt'
+]);
+
+export type SeverityLevel = 'hoch' | 'mittel' | 'niedrig';
+
+/** Returns the repair severity tier for a (component, damage_kind) pair.
+ *  'hoch' = structural / weatherproofing failure; 'niedrig' = consumable; 'mittel' = everything else. */
+export function severity(component: string, kind: string): SeverityLevel {
+	const key = `${component}/${kind}`;
+	if (HIGH_PAIRS.has(key)) return 'hoch';
+	if (component === 'heringe' && kind === 'fehlt') return 'niedrig';
+	return 'mittel';
+}
+
+/** Numeric rank for sort-by-severity (ascending = most urgent first). */
+export const SEVERITY_RANK: Record<SeverityLevel, number> = {
+	hoch: 0,
+	mittel: 1,
+	niedrig: 2
+};
