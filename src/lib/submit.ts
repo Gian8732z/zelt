@@ -7,13 +7,28 @@ export type SubmitResult = 'sent' | 'queued';
 function toFormData(r: OutboxReport): FormData {
 	const fd = new FormData();
 	fd.set('token', r.token);
-	fd.set('report_id', r.report_id);
+	fd.set('submission_id', r.submission_id);
 	fd.set('tent_id', String(r.tent_id));
-	fd.set('category_ids', JSON.stringify(r.category_ids));
-	fd.set('category_labels', JSON.stringify(r.category_labels));
-	fd.set('notes', r.notes);
+	fd.set('reporter_name', r.reporter_name);
 	fd.set('reported_at', r.reported_at);
-	if (r.photo) fd.set('photo', r.photo, `${r.report_id}.jpg`);
+	// Items as JSON without their Blobs; each item's photo (if any) rides along as a separate
+	// multipart part keyed by its report_id, so the function can attach it to that exact row.
+	fd.set(
+		'items',
+		JSON.stringify(
+			r.items.map((it) => ({
+				report_id: it.report_id,
+				component: it.component,
+				damage_kind: it.damage_kind,
+				label: it.label,
+				quantity: it.quantity,
+				description: it.description
+			}))
+		)
+	);
+	for (const it of r.items) {
+		if (it.photo) fd.set(`photo_${it.report_id}`, it.photo, `${it.report_id}.jpg`);
+	}
 	return fd;
 }
 
@@ -67,11 +82,11 @@ export async function flushOutbox(): Promise<number> {
 		try {
 			const res = await postReport(r);
 			if (res.ok) {
-				await removeQueued(r.report_id);
+				await removeQueued(r.submission_id);
 				sent++;
 			} else if (isPermanentReject(res.status)) {
 				// e.g. token rotated since queuing — drop so it doesn't wedge the queue.
-				await removeQueued(r.report_id);
+				await removeQueued(r.submission_id);
 			}
 		} catch {
 			break; // still offline — stop this pass, keep the rest queued

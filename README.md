@@ -46,7 +46,7 @@ npm run dev                         # http://localhost:5173
 
 Local URLs / credentials:
 
-- Reporter: http://localhost:5173/melden/demo-token
+- Reporter (per-tent): http://localhost:5173/zelt/5 · picker fallback: http://localhost:5173/melden
 - Manager: http://localhost:5173/verwalten → `materialwart@example.com` / `zelt-demo-1234`
 - Studio (DB/Auth UI): http://localhost:54323 · Mailpit (email): http://localhost:54324
 
@@ -55,7 +55,9 @@ Notes:
 - `config.toml` sets `[analytics] enabled = false` — its `vector` container can't bind-mount the
   Docker socket under Colima, which otherwise aborts `supabase start`.
 - Copy the local URL + anon key from `supabase status` into `.env` (already done in this copy).
-  The `melden` function reads `supabase/functions/.env` (`REPORTER_TOKEN=demo-token`).
+  `.env` also holds `PUBLIC_REPORTER_TOKEN` (bundled into the app; locally `demo-token`). The
+  `melden`/`zelt-info` functions read `supabase/functions/.env` (`REPORTER_TOKEN=demo-token` — must
+  match `PUBLIC_REPORTER_TOKEN`; plus `CURRENT_CAMP="Sola 26"`, stamped onto new reports).
 - Create a manager user from the CLI:
   ```bash
   eval "$(supabase status -o env)"
@@ -72,10 +74,12 @@ You need a free Supabase project. Everything below is from the [Supabase CLI](ht
 unless noted.
 
 1. **Create the project** at supabase.com (pick an EU region for the photos). Note the project ref.
-2. **Client env** — from *Project Settings → API*, copy the URL and the `anon` public key into `.env`:
+2. **Client env** — from *Project Settings → API*, copy the URL and the `anon` public key into `.env`
+   (production values go in `.env.production`):
    ```
    PUBLIC_SUPABASE_URL="https://<ref>.supabase.co"
    PUBLIC_SUPABASE_ANON_KEY="<anon-key>"
+   PUBLIC_REPORTER_TOKEN="<same-as-the-REPORTER_TOKEN-secret-below>"
    ```
 3. **Apply the schema** (tables, RLS, the `tent_overview` view, the `damage-photos` bucket, seed
    tents 1–20 and the default German categories):
@@ -84,27 +88,37 @@ unless noted.
    supabase db push        # applies supabase/migrations/0001_init.sql
    ```
    (Or paste the migration into the SQL editor.)
-4. **Deploy the reporter endpoint** and set its secrets:
+4. **Deploy the reporter endpoints** and set the shared secret:
    ```bash
-   supabase functions deploy melden
-   supabase secrets set REPORTER_TOKEN="<a-long-random-string>"
+   supabase functions deploy melden     # public submit (one row per damage item)
+   supabase functions deploy zelt-info  # public single-tent status read
+   supabase secrets set REPORTER_TOKEN="<a-long-random-string>"   # must equal PUBLIC_REPORTER_TOKEN
+   supabase secrets set CURRENT_CAMP="Sola 26"                    # stamped onto new reports; per camp
    ```
    `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` are injected automatically. `verify_jwt = false`
-   is set in `supabase/config.toml` — the function is public but gated by `REPORTER_TOKEN`.
+   is set for both in `supabase/config.toml` — they are public but gated by `REPORTER_TOKEN`.
 5. **Create manager accounts** (invite-only — do NOT enable public signup): *Authentication → Users
    → Add user* for each Materialwart.
-6. **Reporter URL / QR code** — the secret link is:
+6. **Per-tent QR codes** — each tent gets its own code encoding a clean, token-less URL:
    ```
-   https://<your-app-domain>/melden/<REPORTER_TOKEN>
+   https://<your-app-domain>/zelt/<n>     # n = 1..20
    ```
-   Generate a QR code from that URL and print it on the material boxes / tent bags. To rotate the
-   secret, change `REPORTER_TOKEN` and reissue the QR (ideally point the QR at a short redirect you
-   control so you don't reprint).
+   The shared secret is bundled into the app (`PUBLIC_REPORTER_TOKEN`), not the URL. Generate all 20
+   at once and print one per tent bag:
+   ```bash
+   npm i -D qrcode
+   BASE_URL=https://<your-app-domain> node scripts/generate-tent-qr.mjs
+   ```
+   The single shared link `https://<your-app-domain>/melden` still works as a fallback (a tent picker
+   that routes into the per-tent page). Because the token is no longer in the printed URL, rotating it
+   (change both `REPORTER_TOKEN` and `PUBLIC_REPORTER_TOKEN`, then redeploy) **does not** require
+   reprinting the QRs.
 
 ## Deployment
 
 `npm run build` emits a static site in `build/`. Deploy it to any static host (Cloudflare Pages,
-Netlify, Vercel). Set `PUBLIC_SUPABASE_URL` and `PUBLIC_SUPABASE_ANON_KEY` as build env vars there.
+Netlify, Vercel). Set `PUBLIC_SUPABASE_URL`, `PUBLIC_SUPABASE_ANON_KEY`, and `PUBLIC_REPORTER_TOKEN`
+as build env vars there (or via `.env.production` for the bundled direct-upload deploy).
 
 ## Notes & caveats
 

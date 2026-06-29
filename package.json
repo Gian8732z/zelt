@@ -16,6 +16,7 @@
     "@sveltejs/kit": "^2.8.0",
     "@sveltejs/vite-plugin-svelte": "^5.0.0",
     "@vite-pwa/sveltekit": "^0.6.7",
+    "qrcode": "^1.5.4",
     "svelte": "^5.2.0",
     "svelte-check": "^4.1.0",
     "typescript": "^5.6.0",

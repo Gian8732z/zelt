@@ -1,0 +1,30 @@
+{
+  // --- Deno: enable ONLY for the edge functions, leave the SvelteKit app on Node/TS ---
+  "deno.enable": true,
+  "deno.enablePaths": ["supabase/functions"],
+  "deno.lint": true,
+
+  // --- TypeScript: use the workspace TS version, prefer single quotes to match repo ---
+  "typescript.tsdk": "node_modules/typescript/lib",
+  "typescript.preferences.quoteStyle": "single",
+  "javascript.preferences.quoteStyle": "single",
+
+  // --- Svelte / formatting ---
+  "[svelte]": {
+    "editor.defaultFormatter": "svelte.svelte-vscode"
+  },
+  "editor.formatOnSave": true,
+
+  // --- Keep noise down: don't index build output ---
+  "files.exclude": {
+    "**/.svelte-kit": true,
+    "**/build": true,
+    "**/.DS_Store": true
+  },
+  "search.exclude": {
+    "**/node_modules": true,
+    "**/.svelte-kit": true,
+    "**/build": true,
+    "**/package-lock.json": true
+  }
+}

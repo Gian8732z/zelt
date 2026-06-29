@@ -1,0 +1,10 @@
+{
+  // VS Code will prompt to install these when the folder is opened.
+  "recommendations": [
+    "svelte.svelte-vscode", // Svelte 5 runes: highlighting, type-check, go-to-def
+    "denoland.vscode-deno", // Deno LSP — scoped to supabase/functions only (see settings.json)
+    "dbaeumer.vscode-eslint", // if/when ESLint is added
+    "esbenp.prettier-vscode", // formatting
+    "bradlc.vscode-tailwindcss" // harmless no-op until/unless Tailwind is adopted
+  ]
+}

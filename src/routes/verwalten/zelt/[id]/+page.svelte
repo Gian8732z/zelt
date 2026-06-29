@@ -143,12 +143,18 @@
 				<div class="card damage {d.status}">
 					<div class="row">
 						<span class="status-pill {d.status}">{DAMAGE_STATUS_LABELS[d.status]}</span>
-						<span class="muted">{fmt(d.reported_at)}</span>
+						<span class="muted">
+							{[d.camp, d.reporter_name ? `von ${d.reporter_name}` : null, fmt(d.reported_at)]
+								.filter(Boolean)
+								.join(' · ')}
+						</span>
 					</div>
 
 					{#if d.category_labels.length}
 						<ul class="cats">
-							{#each d.category_labels as label}<li>{label}</li>{/each}
+							{#each d.category_labels as label}
+								<li>{label}{d.quantity && d.quantity > 1 ? ` (×${d.quantity})` : ''}</li>
+							{/each}
 						</ul>
 					{/if}
 

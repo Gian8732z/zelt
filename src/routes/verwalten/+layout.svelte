@@ -50,7 +50,6 @@
 		<header class="topbar">
 			<nav>
 				<a href="/verwalten">Flotte</a>
-				<a href="/verwalten/kategorien">Kategorien</a>
 			</nav>
 			<button class="secondary" onclick={signOut}>Abmelden</button>
 		</header>

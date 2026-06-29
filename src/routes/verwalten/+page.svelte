@@ -2,10 +2,13 @@
 	import { onMount } from 'svelte';
 	import { getSupabase } from '$lib/supabase';
 	import { TENT_STATUS_LABELS, type TentWithStatus } from '$lib/types';
+	import { groupTents } from '$lib/camp-groups';
 
 	let tents = $state<TentWithStatus[]>([]);
 	let loading = $state(true);
 	let errorMsg = $state<string | null>(null);
+
+	const sections = $derived(groupTents(tents));
 
 	async function load() {
 		const sb = getSupabase();
@@ -25,7 +28,10 @@
 </script>
 
 <main>
-	<h1>Flotte</h1>
+	<div class="head">
+		<h1>Flotte</h1>
+		<a class="secondary btn" href="/verwalten/lager">Lager einrichten</a>
+	</div>
 	{#if errorMsg}<div class="banner err">{errorMsg}</div>{/if}
 	{#if loading}
 		<p class="muted">Laden…</p>
@@ -35,18 +41,39 @@
 			<span><i class="dot damaged"></i> {TENT_STATUS_LABELS.damaged}</span>
 			<span><i class="dot out_of_service"></i> {TENT_STATUS_LABELS.out_of_service}</span>
 		</div>
-		<div class="grid">
-			{#each tents as t (t.tent_id)}
-				<a class="tile {t.status}" href={`/verwalten/zelt/${t.tent_id}`}>
-					<span class="num">{t.tent_id}</span>
-					{#if t.open_count > 0}<span class="badge">{t.open_count}</span>{/if}
-				</a>
-			{/each}
-		</div>
+		{#each sections as section (section.name)}
+			<section class="group">
+				<h2 class:inactive={section.inactive}>{section.name}</h2>
+				<div class="grid">
+					{#each section.tents as t (t.tent_id)}
+						<a class="tile {t.status}" href={`/verwalten/zelt/${t.tent_id}`}>
+							<span class="num">{t.tent_id}</span>
+							{#if t.open_count > 0}<span class="badge">{t.open_count}</span>{/if}
+						</a>
+					{/each}
+				</div>
+			</section>
+		{/each}
 	{/if}
 </main>
 
 <style>
+	.head {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		gap: 1rem;
+	}
+	.btn {
+		text-decoration: none;
+		min-height: 40px;
+		display: inline-flex;
+		align-items: center;
+		padding: 0 0.9rem;
+		border-radius: var(--radius);
+		font-weight: 600;
+		white-space: nowrap;
+	}
 	.legend {
 		display: flex;
 		flex-wrap: wrap;
@@ -71,6 +98,17 @@
 	}
 	.dot.out_of_service {
 		background: var(--grey);
+	}
+	.group {
+		margin-bottom: 1.5rem;
+	}
+	.group h2 {
+		font-size: 1.05rem;
+		margin: 0 0 0.6rem;
+	}
+	.group h2.inactive {
+		color: var(--text-muted);
+		font-weight: 600;
 	}
 	.grid {
 		display: grid;

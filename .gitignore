@@ -9,4 +9,8 @@ node_modules
 .vercel
 .netlify
 /supabase/.temp
+/qr
 *.log
+
+# Claude Code local settings + worktrees
+.claude/

@@ -9,9 +9,13 @@ let dbp: Promise<IDBPDatabase<ZeltDB>> | null = null;
 
 function db(): Promise<IDBPDatabase<ZeltDB>> {
 	if (!dbp) {
-		dbp = openDB<ZeltDB>('zelt', 1, {
+		// v3: the queued shape changed again — each item now carries its own photo Blob and the
+		// report carries `reporter_name` (the single per-submission photo is gone). The queue is
+		// transient and normally empty, so recreating the store on upgrade drops any stale entries.
+		dbp = openDB<ZeltDB>('zelt', 3, {
 			upgrade(d) {
-				d.createObjectStore('outbox', { keyPath: 'report_id' });
+				if (d.objectStoreNames.contains('outbox')) d.deleteObjectStore('outbox');
+				d.createObjectStore('outbox', { keyPath: 'submission_id' });
 			}
 		});
 	}

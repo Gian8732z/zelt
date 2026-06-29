@@ -10,3 +10,7 @@ enabled = false
 # The reporter is anonymous and gated by REPORTER_TOKEN inside the function, so the platform
 # JWT check is disabled — the endpoint is intentionally public-but-token-guarded.
 verify_jwt = false
+
+[functions.zelt-info]
+# Public per-tent status read, gated by the same REPORTER_TOKEN inside the function.
+verify_jwt = false
