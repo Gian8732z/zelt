@@ -50,6 +50,8 @@
 		<header class="topbar">
 			<nav>
 				<a href="/verwalten">Flotte</a>
+				<a href="/verwalten/reparaturen">Reparaturen</a>
+				<a href="/verwalten/material">Material</a>
 			</nav>
 			<button class="secondary" onclick={signOut}>Abmelden</button>
 		</header>
