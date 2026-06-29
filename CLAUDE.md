@@ -11,7 +11,7 @@ detail, and the `melden` function (token gate, insert, idempotency) were all dri
 browser against the *local* stack with zero console errors; demo data is seeded (tents 5/7/12
 damaged). The app still degrades to a "not configured" notice when env is absent.
 
-**Production (deployed 2026-06-22; damage form redesigned 2026-06-27; camp-groups + damage-form features deployed 2026-06-28):**
+**Production (deployed 2026-06-22; damage form redesigned 2026-06-27; camp-groups + damage-form features deployed 2026-06-28; manager overview + Statistik deployed 2026-06-29):**
 - **App:** https://zelt.pages.dev (Cloudflare Pages, project `zelt`, direct-upload deploy)
 - **Supabase:** cloud project `kzlmbkadbzfhqzhaupiu` ("Zelt", eu-central-1). Schema pushed
   (through migration `0005`), `melden` + `zelt-info` functions deployed, `REPORTER_TOKEN` +
@@ -48,6 +48,22 @@ damaged). The app still degrades to a "not configured" notice when env is absent
   Pages); the 14 pre-existing reports were backfilled to `reporter_name='Gromit'`, `camp='Sola 26'`,
   and the shared tent 3 & 5 photos pinned to their `stoff_gerissen` rows. End-to-end write verified on
   prod (new mode accepted + camp stamped). **Uncommitted in git.**
+
+- **2026-06-29 — manager overview features (deployed):** four front-end additions to the manager
+  area (no schema/function changes — all read existing `damages`/`tent_overview`): (1) a fleet-wide
+  **Reparaturliste** (`/verwalten/reparaturen`) — every open damage as a flat, sortable triage queue,
+  default sort **by severity** (`severity(component, kind)` appended to `damage-types.ts`:
+  Aussenzelt/Innenzelt/Stangen structural failures = `hoch`, `heringe/fehlt` = `niedrig`, rest =
+  `mittel`; oldest-first tiebreak), with Status + Komponente filters, inline resolve/dismiss, and
+  photo thumbnails; (2) a **summary KPI strip** atop the fleet grid (Einsatzbereit / Reparatur nötig /
+  Ausser Betrieb / Offene Schäden -> links to the worklist); (3) the tent-detail resolve/dismiss moved
+  to **inline forms** (no browser `prompt()`/`confirm()`) plus a **bulk "alle erledigen"**; (4) the
+  old Material page **replaced by a Statistik page** (`/verwalten/statistik`, **Chart.js**) — five
+  sections (Uebersicht incl. oe Reparaturzeit, Nach Komponente, Nach Zelt, Nach Schadenstyp [the
+  former procurement breakdown + a Nur-offene/Alle toggle], Pro Saison), a page-level Saison filter,
+  counting open+resolved and excluding `invalid`. Nav is now Flotte / Reparaturen / Statistik. Added
+  the `chart.js` dependency. Built by parallel **Sonnet** agents in isolated worktrees, merged to
+  `main`, `npm run check`/`build` green, and **deployed to Cloudflare Pages** (https://zelt.pages.dev).
 
 **Not yet done:** the photo and offline-sync paths are written but not yet exercised in a browser
 **against the cloud**; no automated tests; the 2026-06-27 component-first redesign is deployed but
@@ -104,7 +120,7 @@ the cloud values live in `.env.production` (used by `npm run build`), local in `
   localStorage so a later offline open still renders the camp; cold cache offline → flat 1–20) that
   routes into the per-tent page. `src/routes/verwalten/` — manager area (`+layout.svelte` auth guard,
   `anmelden/` login, `+page` fleet grid grouped by `camp_group`, `lager/` bulk camp-setup editor,
-  `zelt/[id]/` detail). Outbox flush is wired globally in the root `+layout.svelte`.
+  `zelt/[id]/` detail, `reparaturen/` fleet-wide repair worklist, `statistik/` Chart.js stats; the fleet `+page` also carries a summary KPI strip). Outbox flush is wired globally in the root `+layout.svelte`.
 - `supabase/migrations/0001_init.sql` — schema, RLS, `tent_overview` view, seeds, photo bucket.
   `0002_damage_structure.sql` — `damage_type` + `quantity` columns (the flat `damage_type` is
   superseded by `0003`). `0003_component_damage.sql` — `component` + `damage_kind` columns + index
