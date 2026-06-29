@@ -13,6 +13,18 @@
 	let errorMsg = $state<string | null>(null);
 	let busyId = $state<string | null>(null);
 
+	// Inline action state — per-card
+	let resolveId = $state<string | null>(null);
+	let resolveNote = $state('');
+	let invalidId = $state<string | null>(null);
+
+	// Bulk resolve state
+	let bulkOpen = $state(false);
+	let bulkNote = $state('');
+	let bulkBusy = $state(false);
+
+	const openDamages = $derived(damages.filter((d) => d.status === 'open'));
+
 	async function load() {
 		const sb = getSupabase();
 		if (!sb) return;
@@ -53,7 +65,6 @@
 	async function resolve(d: Damage) {
 		const sb = getSupabase();
 		if (!sb) return;
-		const note = (prompt('Was wurde repariert oder ersetzt? (optional)') ?? '').trim();
 		busyId = d.report_id;
 		const { data: u } = await sb.auth.getUser();
 		const { error } = await sb
@@ -61,11 +72,13 @@
 			.update({
 				status: 'resolved',
 				resolution_timestamp: new Date().toISOString(),
-				resolution_notes: note || null,
+				resolution_notes: resolveNote.trim() || null,
 				resolved_by: u.user?.id ?? null
 			})
 			.eq('report_id', d.report_id);
 		busyId = null;
+		resolveId = null;
+		resolveNote = '';
 		if (error) {
 			errorMsg = error.message;
 			return;
@@ -76,7 +89,6 @@
 	async function markInvalid(d: Damage) {
 		const sb = getSupabase();
 		if (!sb) return;
-		if (!confirm('Diese Meldung als ungültig markieren? (z. B. Spam oder Duplikat)')) return;
 		busyId = d.report_id;
 		const { data: u } = await sb.auth.getUser();
 		const { error } = await sb
@@ -88,6 +100,34 @@
 			})
 			.eq('report_id', d.report_id);
 		busyId = null;
+		invalidId = null;
+		if (error) {
+			errorMsg = error.message;
+			return;
+		}
+		await load();
+	}
+
+	async function bulkResolve() {
+		const sb = getSupabase();
+		if (!sb) return;
+		bulkBusy = true;
+		const { data: u } = await sb.auth.getUser();
+		const now = new Date().toISOString();
+		const note = bulkNote.trim() || null;
+		const ids = openDamages.map((d) => d.report_id);
+		const { error } = await sb
+			.from('damages')
+			.update({
+				status: 'resolved',
+				resolution_timestamp: now,
+				resolution_notes: note,
+				resolved_by: u.user?.id ?? null
+			})
+			.in('report_id', ids);
+		bulkBusy = false;
+		bulkOpen = false;
+		bulkNote = '';
 		if (error) {
 			errorMsg = error.message;
 			return;
@@ -136,6 +176,51 @@
 		</div>
 
 		<h2>Schadensverlauf</h2>
+
+		{#if openDamages.length >= 2}
+			<div class="card bulk-resolve">
+				{#if !bulkOpen}
+					<button
+						class="secondary"
+						onclick={() => {
+							bulkOpen = true;
+							bulkNote = '';
+						}}
+					>
+						Alle ({openDamages.length}) Schäden dieses Zelts erledigen
+					</button>
+				{:else}
+					<p class="bulk-label">
+						<strong>Alle {openDamages.length} offenen Schäden als erledigt markieren</strong>
+					</p>
+					<textarea
+						class="inline-note"
+						placeholder="Was wurde repariert oder ersetzt? (optional, gilt für alle)"
+						bind:value={bulkNote}
+						rows="3"
+					></textarea>
+					<div class="actions">
+						<button
+							disabled={bulkBusy}
+							onclick={bulkResolve}
+						>
+							{bulkBusy ? 'Wird gespeichert…' : `Alle ${openDamages.length} erledigen`}
+						</button>
+						<button
+							class="secondary"
+							disabled={bulkBusy}
+							onclick={() => {
+								bulkOpen = false;
+								bulkNote = '';
+							}}
+						>
+							Abbrechen
+						</button>
+					</div>
+				{/if}
+			</div>
+		{/if}
+
 		{#if damages.length === 0}
 			<p class="muted">Keine Meldungen für dieses Zelt.</p>
 		{:else}
@@ -179,18 +264,78 @@
 					{/if}
 
 					{#if d.status === 'open'}
-						<div class="actions">
-							<button disabled={busyId === d.report_id} onclick={() => resolve(d)}>
-								Als erledigt markieren
-							</button>
-							<button
-								class="secondary"
-								disabled={busyId === d.report_id}
-								onclick={() => markInvalid(d)}
-							>
-								Ungültig
-							</button>
-						</div>
+						{#if resolveId === d.report_id}
+							<!-- Inline resolve form -->
+							<div class="inline-form">
+								<textarea
+									class="inline-note"
+									placeholder="Was wurde repariert oder ersetzt? (optional)"
+									bind:value={resolveNote}
+									rows="3"
+								></textarea>
+								<div class="actions">
+									<button
+										disabled={busyId === d.report_id}
+										onclick={() => resolve(d)}
+									>
+										{busyId === d.report_id ? 'Wird gespeichert…' : 'Erledigt'}
+									</button>
+									<button
+										class="secondary"
+										disabled={busyId === d.report_id}
+										onclick={() => {
+											resolveId = null;
+											resolveNote = '';
+										}}
+									>
+										Abbrechen
+									</button>
+								</div>
+							</div>
+						{:else if invalidId === d.report_id}
+							<!-- Inline invalid confirm -->
+							<div class="inline-form">
+								<p class="inline-confirm-text">
+									Als ungültig markieren? (Spam / Duplikat)
+								</p>
+								<div class="actions">
+									<button
+										class="danger"
+										disabled={busyId === d.report_id}
+										onclick={() => markInvalid(d)}
+									>
+										{busyId === d.report_id ? 'Wird gespeichert…' : 'Ungültig'}
+									</button>
+									<button
+										class="secondary"
+										disabled={busyId === d.report_id}
+										onclick={() => (invalidId = null)}
+									>
+										Abbrechen
+									</button>
+								</div>
+							</div>
+						{:else}
+							<!-- Default action buttons -->
+							<div class="actions">
+								<button
+									disabled={busyId === d.report_id}
+									onclick={() => {
+										resolveNote = '';
+										resolveId = d.report_id;
+									}}
+								>
+									Als erledigt markieren
+								</button>
+								<button
+									class="secondary"
+									disabled={busyId === d.report_id}
+									onclick={() => (invalidId = d.report_id)}
+								>
+									Ungültig
+								</button>
+							</div>
+						{/if}
 					{/if}
 				</div>
 			{/each}
@@ -255,5 +400,32 @@
 	.actions button {
 		flex: 1;
 		min-height: 44px;
+	}
+	.inline-form {
+		margin-top: 0.75rem;
+	}
+	.inline-note {
+		width: 100%;
+		box-sizing: border-box;
+		padding: 0.5rem 0.75rem;
+		border: 1px solid var(--border, #ccc);
+		border-radius: var(--radius, 6px);
+		font-size: 1rem;
+		font-family: inherit;
+		resize: vertical;
+	}
+	.inline-confirm-text {
+		margin: 0 0 0.25rem;
+		font-weight: 600;
+	}
+	.bulk-resolve {
+		margin-bottom: 1rem;
+	}
+	.bulk-resolve > button {
+		width: 100%;
+		min-height: 44px;
+	}
+	.bulk-label {
+		margin: 0 0 0.5rem;
 	}
 </style>
