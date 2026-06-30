@@ -37,25 +37,24 @@ If `$ARGUMENTS` is empty, ask what the feature is before doing anything else.
   Claude Code generated-with footer.
 
 ## 5. Classify risk against CODEOWNERS — this drives merge mode
-Diff the PR's changed files against `.github/CODEOWNERS`. Use the **same matcher the CI
-`codeowner-gate` job uses** so local and CI agree:
+Diff the PR's changed files against `.github/CODEOWNERS` using **`scripts/codeowner-match.mjs`** —
+the **single source of truth** for the matcher, shared with the CI `codeowner-gate` job (it dynamic-
+imports the same script), so local and CI can never disagree. The matcher semantics:
 - A pattern `/foo/` (trailing slash) matches a file that equals `foo` or starts with `foo/`.
 - A pattern `/foo/bar.ts` (exact file) matches that file or anything under `foo/bar.ts/`.
 - Strip the leading `/` before comparing; compare against repo-root-relative paths.
 
 Quick check:
 ```
-gh pr diff --name-only | while read f; do grep -E '^/' .github/CODEOWNERS | awk '{print $1}' \
-  | sed 's#^/##' | while read p; do
-    case "$p" in
-      */) [ "$f" = "${p%/}" ] || case "$f" in "$p"*) echo "HIGH-RISK: $f ($p)";; esac ;;
-      *)  [ "$f" = "$p" ] && echo "HIGH-RISK: $f ($p)"; case "$f" in "$p"/*) echo "HIGH-RISK: $f ($p)";; esac ;;
-    esac
-  done; done
+gh pr diff --name-only | node scripts/codeowner-match.mjs
 ```
+It prints one `HIGH-RISK: <file> (owner: @x)` line per owned file, or `No high-risk paths touched.`
+(it's a classifier — always exits 0).
 
 - **No high-risk hit (low-risk PR):** run `/code-review`, address findings, then
-  `gh pr merge --auto --squash`. It merges itself once `gate` + `codeowner-gate` are green.
+  `gh pr merge --auto --squash`. With the merge queue enabled, `--auto` routes the PR **through the
+  queue** (which re-runs the unit lane on the queued merge commit) rather than merging directly;
+  behavior is otherwise the same — it lands once `gate` + `codeowner-gate` are green.
 - **High-risk hit (CODEOWNERS path touched):** do **NOT** auto-merge. `gh pr edit --add-reviewer
   Gian8732z`, run `/code-review`, then **stop and tell Gian** the PR needs his approval +
   admin-merge (sole owner can't self-approve — that's the documented escape hatch). Name which
