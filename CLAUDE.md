@@ -229,6 +229,10 @@ path, `supabase.ts`/`config.ts`, `damage-types.ts`, `routes/zelt/**`, manager au
   chips via `AskUserQuestion` (recommended option first, `Other` for off-menu); open-ended questions
   stay free text; one question at a time. Without the flag, behavior is unchanged (plan directly, ask
   only when blocked).
+- **Step 7 — update CLAUDE.md (added 2026-06-30):** after merge + green prod deploy, `/feature`
+  refreshes this file so it never drifts stale — a dated *Current state* bullet for what shipped, plus
+  fixing any now-superseded *Layout / Resolved decisions / Status* lines. The doc edit rides the same
+  low-risk pipeline (own quick PR or folded into the feature PR); `main` is never hand-edited.
 - **Agent factory:** when work splits into **independent slices**, fan out one subagent per slice in
   its **own worktree**, each opening its **own PR** through the same tiered gate. **Coupled work
   stays single-stream** (one branch, one PR) to avoid merge conflicts.
