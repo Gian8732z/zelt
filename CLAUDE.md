@@ -221,9 +221,14 @@ path, `supabase.ts`/`config.ts`, `damage-types.ts`, `routes/zelt/**`, manager au
   Branch protection on `main`: required checks `gate` + `codeowner-gate`, no force-push/deletion.
 
 ### `/feature` command + agent factory
-- **`/feature <description>`** (`.claude/commands/feature.md`) is the on-ramp: branch off fresh
-  `main` → plan → build → local gate (`check` + Vitest) → PR → classify risk vs. CODEOWNERS →
+- **`/feature [--grill] <description>`** (`.claude/commands/feature.md`) is the on-ramp: branch off
+  fresh `main` → plan → build → local gate (`check` + Vitest) → PR → classify risk vs. CODEOWNERS →
   `/code-review` → auto-merge if low-risk, else hand to Gian → drive to merge + confirm deploy.
+- **`--grill` (opt-in):** before any code, runs the **`grilling`** skill to stress-test the idea, then
+  carries the hardened spec into planning. **Hybrid Q&A:** decidable choices are asked as selectable
+  chips via `AskUserQuestion` (recommended option first, `Other` for off-menu); open-ended questions
+  stay free text; one question at a time. Without the flag, behavior is unchanged (plan directly, ask
+  only when blocked).
 - **Agent factory:** when work splits into **independent slices**, fan out one subagent per slice in
   its **own worktree**, each opening its **own PR** through the same tiered gate. **Coupled work
   stays single-stream** (one branch, one PR) to avoid merge conflicts.
