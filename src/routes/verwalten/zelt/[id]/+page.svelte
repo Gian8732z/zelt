@@ -179,26 +179,19 @@
 	{:else}
 		<div class="card service">
 			<div>
-				<strong>Ausser Betrieb</strong>
+				<strong>{tent?.out_of_service ? 'Ausser Betrieb' : 'In Betrieb'}</strong>
 				<p class="muted" style="margin: 0.25rem 0 0;">
 					Manuell gesetzt (z. B. eingelagert oder in Reparatur).
 				</p>
 			</div>
-			<button class={tent?.out_of_service ? 'danger' : 'secondary'} onclick={toggleService}>
-				{tent?.out_of_service ? 'Wieder in Betrieb' : 'Ausser Betrieb setzen'}
-			</button>
-		</div>
-
-		<div class="card service">
-			<div>
-				<strong>Etikett</strong>
-				<p class="muted" style="margin: 0.25rem 0 0;">
-					PDF mit QR-Code zum Aufkleben am Zelt.
-				</p>
+			<div class="service-actions">
+				<button class="secondary" onclick={makeLabel} disabled={labelBusy}>
+					{labelBusy ? 'Wird erstellt…' : 'QR'}
+				</button>
+				<button class={tent?.out_of_service ? 'danger' : 'secondary'} onclick={toggleService}>
+					{tent?.out_of_service ? 'Wieder in Betrieb' : 'Ausser Betrieb setzen'}
+				</button>
 			</div>
-			<button class="secondary" onclick={makeLabel} disabled={labelBusy}>
-				{labelBusy ? 'Wird erstellt…' : 'Etikett (PDF)'}
-			</button>
 		</div>
 
 		<h2>Schadensverlauf</h2>
@@ -375,6 +368,11 @@
 		align-items: center;
 		justify-content: space-between;
 		gap: 1rem;
+	}
+	.service-actions {
+		display: flex;
+		gap: 0.5rem;
+		flex: none;
 	}
 	.service button {
 		flex: none;
