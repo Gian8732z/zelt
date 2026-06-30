@@ -1,5 +1,5 @@
 ---
-description: On-ramp a feature through the Zelt pipeline — optionally grill the idea first, then branch off fresh main, build (single-stream or agent-factory fan-out), gate locally, open a PR, /code-review, and drive it to tiered merge.
+description: On-ramp a feature through the Zelt pipeline — optionally grill the idea first, then branch off fresh main, build (single-stream or agent-factory fan-out), gate locally, open a PR, /code-review, drive it to tiered merge, and update CLAUDE.md.
 argument-hint: [--grill] <short description of the feature or fix>
 ---
 
@@ -89,6 +89,15 @@ It prints one `HIGH-RISK: <file> (owner: @x)` line per owned file, or `No high-r
 - On merge, confirm the push-to-`main` `deploy-prod` run goes green (migrate + functions to staging
   & prod, build, CF Pages prod): `gh run list --branch main -L 3`.
 - Report the deployed result. If anything fails, surface the failing job's log, don't silently retry.
+
+## 7. Update CLAUDE.md
+- Once the feature is merged and the prod deploy is green, update `CLAUDE.md` so it reflects the new
+  reality — it's the project's living memory and the next session reads it first. Touch only what the
+  feature actually changed: add a dated bullet to **Current state** (what shipped + the deploy date),
+  and fix any now-stale lines in **Layout**, **Resolved decisions**, or **Status — what's left** that
+  the change superseded. Keep it terse and factual; don't restate the PR.
+- This doc edit rides the same pipeline: it's a low-risk path, so open it as its own quick PR (or fold
+  it into the feature PR if that PR hasn't merged yet) and let it auto-merge. Never hand-edit `main`.
 
 ## Notes
 - Three backends: ephemeral-local Supabase (CI test gate) / staging (backs the CF preview) / prod

@@ -223,7 +223,8 @@ path, `supabase.ts`/`config.ts`, `damage-types.ts`, `routes/zelt/**`, manager au
 ### `/feature` command + agent factory
 - **`/feature [--grill] <description>`** (`.claude/commands/feature.md`) is the on-ramp: branch off
   fresh `main` → plan → build → local gate (`check` + Vitest) → PR → classify risk vs. CODEOWNERS →
-  `/code-review` → auto-merge if low-risk, else hand to Gian → drive to merge + confirm deploy.
+  `/code-review` → auto-merge if low-risk, else hand to Gian → drive to merge + confirm deploy →
+  update CLAUDE.md to reflect what shipped (final step 7, rides the same low-risk pipeline).
 - **`--grill` (opt-in):** before any code, runs the **`grilling`** skill to stress-test the idea, then
   carries the hardened spec into planning. **Hybrid Q&A:** decidable choices are asked as selectable
   chips via `AskUserQuestion` (recommended option first, `Other` for off-menu); open-ended questions
