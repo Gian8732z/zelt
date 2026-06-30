@@ -2,9 +2,10 @@
 // a German call-to-action, and the plain URL as a scan-it-by-hand fallback. Generated client-side
 // in the manager area (a one-page A6 PDF), so a Materialwart can print/replace a single sticker
 // without re-running the bulk `scripts/generate-tent-qr.mjs`.
-
-import { jsPDF } from 'jspdf';
-import QRCode from 'qrcode';
+//
+// jsPDF + qrcode are heavy and only needed on the (rare) button click, so they're dynamically
+// imported inside downloadTentLabel — the manager route and the pure, unit-tested core below stay
+// free of them.
 
 export const LABEL_CTA = 'Schaden? Hier scannen und melden';
 
@@ -44,6 +45,7 @@ export function labelFileName(tentId: number): string {
  */
 export async function downloadTentLabel(tentId: number, origin: string): Promise<void> {
 	const label = buildTentLabel(tentId, origin);
+	const [{ jsPDF }, { default: QRCode }] = await Promise.all([import('jspdf'), import('qrcode')]);
 
 	// Crisp QR: render at a high pixel density, place it as a square on the page.
 	const qrDataUrl = await QRCode.toDataURL(label.url, {
