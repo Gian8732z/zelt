@@ -1,6 +1,6 @@
 ---
-description: On-ramp a feature through the Zelt pipeline — branch off fresh main, build (single-stream or agent-factory fan-out), gate locally, open a PR, /code-review, and drive it to tiered merge.
-argument-hint: <short description of the feature or fix>
+description: On-ramp a feature through the Zelt pipeline — optionally grill the idea first, then branch off fresh main, build (single-stream or agent-factory fan-out), gate locally, open a PR, /code-review, and drive it to tiered merge.
+argument-hint: [--grill] <short description of the feature or fix>
 ---
 
 You are running the Zelt **`/feature`** on-ramp. Goal: take the request in `$ARGUMENTS` from idea to
@@ -8,7 +8,20 @@ merged-and-deployed through the PR pipeline, choosing single-stream vs. agent-fa
 respecting the tiered code-owner gate. The pipeline is the only deploy path — never `wrangler`/
 `supabase` deploy from the laptop.
 
-If `$ARGUMENTS` is empty, ask what the feature is before doing anything else.
+First parse `$ARGUMENTS` for a leading `--grill` flag: if present, set GRILL mode and strip it, leaving
+the feature description as the rest. If the description is empty, ask what the feature is before doing
+anything else.
+
+## 0. Grill first (only if `--grill`)
+- Skip this whole step unless GRILL mode is on.
+- Run the **`grilling`** skill on the feature description to stress-test it *before* any code: interview
+  the user relentlessly about scope, edge cases, data model, the two-audience access boundary, offline
+  behavior, and which existing files/decisions it touches. Surface unknowns and force choices now, while
+  it's cheap.
+- Carry the hardened spec that comes out of the grilling into the planning in step 2 — the plan and the
+  coupling decision should reflect what the interview settled, not the original one-liner.
+- Without `--grill`, do not interview: plan directly and only ask when genuinely blocked (default
+  behavior).
 
 ## 1. Branch off fresh `main`
 - `git fetch origin -q`, then create an isolated worktree on a new branch off `origin/main`
