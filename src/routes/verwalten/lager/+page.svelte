@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { getSupabase } from '$lib/supabase';
+	import { downloadInfoPoster } from '$lib/info-poster';
 
 	// Once-per-camp setup: assign each tent to a group and flag the ones sitting in storage as
 	// "Ausser Betrieb". A blank group + out-of-service renders a tent in the dimmed "Nicht im Lager"
@@ -16,6 +17,23 @@
 	let saving = $state(false);
 	let errorMsg = $state<string | null>(null);
 	let saved = $state(false);
+
+	// Camp name for the printable info poster's footer. There's no client-readable camp value
+	// (CURRENT_CAMP lives only in the melden function's env), so the manager sets it here; remembered
+	// per device so it's typed once per camp.
+	const CAMP_KEY = 'zelt:poster-camp';
+	let camp = $state('Sola 26');
+	let generating = $state(false);
+
+	async function generatePoster() {
+		generating = true;
+		try {
+			if (typeof localStorage !== 'undefined') localStorage.setItem(CAMP_KEY, camp.trim());
+			await downloadInfoPoster(window.location.origin, camp);
+		} finally {
+			generating = false;
+		}
+	}
 
 	// Existing group names, fed to a <datalist> so typing reuses a section instead of spawning a
 	// near-duplicate ("TN-Zelter" vs "TN Zelter"). Reactive: a new name is offered to the other rows.
@@ -46,7 +64,11 @@
 		}));
 	}
 
-	onMount(load);
+	onMount(() => {
+		const saved = localStorage.getItem(CAMP_KEY);
+		if (saved) camp = saved;
+		load();
+	});
 
 	async function save() {
 		const sb = getSupabase();
@@ -77,6 +99,17 @@
 		Weise jedem Zelt eine Gruppe zu. Zelte ohne Gruppe, die «Ausser Betrieb» sind, erscheinen
 		ausgegraut («Nicht im Lager») – im Melde- wie im Verwaltungsbereich.
 	</p>
+
+	<div class="poster">
+		<label class="camp">
+			Lager-Name
+			<input type="text" bind:value={camp} placeholder="z. B. Sola 26" />
+		</label>
+		<button class="secondary" onclick={generatePoster} disabled={generating}>
+			{generating ? 'Erstelle PDF…' : 'Info-Plakat (PDF)'}
+		</button>
+		<span class="muted hint">Erklärung + QR-Code zum Aushängen.</span>
+	</div>
 
 	{#if errorMsg}<div class="banner err">{errorMsg}</div>{/if}
 
@@ -119,6 +152,33 @@
 </main>
 
 <style>
+	.poster {
+		display: flex;
+		flex-wrap: wrap;
+		align-items: flex-end;
+		gap: 0.75rem;
+		margin-top: 1rem;
+		padding: 0.9rem;
+		border: 1px solid var(--border, #ddd);
+		border-radius: 8px;
+	}
+	.camp {
+		display: flex;
+		flex-direction: column;
+		gap: 0.25rem;
+		font-size: 0.85rem;
+		color: var(--text-muted);
+	}
+	.camp input {
+		min-height: 44px;
+	}
+	.poster button {
+		min-height: 44px;
+		padding: 0 1.2rem;
+	}
+	.hint {
+		font-size: 0.8rem;
+	}
 	.rows {
 		display: flex;
 		flex-direction: column;
