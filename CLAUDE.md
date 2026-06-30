@@ -85,7 +85,9 @@ the cloud values live in `.env.production` (used by `npm run build`), local in `
   (`supabase start` won't re-run them). Local manager demo
   login `materialwart@example.com` / `zelt-demo-1234`; local reporter URL `/melden/demo-token`
   (token set in `supabase/functions/.env`).
-- **Cloud deploy** (CLI is logged in + linked to `kzlmbkadbzfhqzhaupiu`):
+- **Cloud deploy** (⚠️ SUPERSEDED by the CI/CD pipeline — see "Pipeline & contribution workflow"
+  below. Deploys now flow through PR → CI → merge; the manual commands below are break-glass only,
+  for when CI is down. CLI is logged in + linked to `kzlmbkadbzfhqzhaupiu`):
   - Schema: `supabase db push` (uses a temporary login role from the access token — no DB password
     needed). Functions: `supabase functions deploy melden` and `supabase functions deploy zelt-info`.
     Secrets: `supabase secrets set REPORTER_TOKEN=…` and `supabase secrets set CURRENT_CAMP="Sola 26"`
@@ -166,6 +168,53 @@ manager-only `notes`/`acquired_on` stay hidden even though RLS itself is row-lev
 - **Polish / nice-to-have:** PNG maskable icons (only an SVG today); a few tests (status
   computation, idempotency, outbox); manager-created reports; CSV export for J+S. None block the
   core flows.
+
+## Pipeline & contribution workflow
+
+**Deploys go through git, not the laptop.** As of 2026-06-30 the project has a PR-based CI/CD
+pipeline (GitHub: `github.com/Gian8732z/zelt`, now public). The manual `wrangler`/`supabase` deploy
+commands in the Commands section are **break-glass only**. Normal flow: branch → PR → green CI →
+merge → auto-deploy.
+
+### The CI gate (`.github/workflows/ci.yml`)
+On every PR and push to `main`:
+- **`gate`** (the required check): `npm run check` → Vitest unit tests → boot an **ephemeral local
+  Supabase** inside the runner + apply all migrations from scratch → `npm run build` → Playwright
+  E2E (reporter happy-path + offline-outbox→reconnect→sync). This is the source-of-truth quality bar.
+- **`codeowner-gate`** (required, PRs only): diffs the PR's changed files against `.github/CODEOWNERS`
+  and **fails** if a high-risk path is touched without an APPROVED review from a code owner. No owned
+  path → passes instantly (low-risk PRs stay 0-review auto-mergeable).
+- **`deploy-preview`** (PRs): builds against **staging** Supabase and deploys a per-PR Cloudflare
+  Pages preview (`pr-<n>.zelt.pages.dev`), comments the URL.
+- **`deploy-prod`** (push to `main`): migrates + deploys functions to **staging then prod**, builds,
+  deploys the prod SPA to `zelt.pages.dev`.
+
+### Three backends
+1. **ephemeral-local** — booted per CI run, the isolated test gate (parallel-safe, migrations fresh).
+2. **staging** (`lcfmxoaejtlnxtczenqu`) — backs the deployed CF previews; migrates on merge.
+3. **prod** (`kzlmbkadbzfhqzhaupiu`) — migrates + deploys on merge to `main` only.
+
+Build-time env (URLs, anon keys, `PUBLIC_REPORTER_TOKEN`) is injected by CI from GitHub
+secrets/vars, picked by branch. `.env*` files stay local-dev-only. Function secrets
+(`REPORTER_TOKEN`/`CURRENT_CAMP`) remain hand-managed via `supabase secrets set` — never in CI.
+
+### Tiered merge (the code-owner gate)
+`.github/CODEOWNERS` lists **high-risk paths** (schema + functions, the reporter write/sync/photo
+path, `supabase.ts`/`config.ts`, `damage-types.ts`, `routes/zelt/**`, manager auth, `.github/**`).
+- **Low-risk PR** (no owned path): green CI → eligible for **auto-merge** (`gh pr merge --auto`).
+- **High-risk PR** (touches an owned path): needs **@Gian8732z's approval**. As sole owner he can't
+  self-approve, so he clears it via **admin merge** (`enforce_admins=false` is the escape hatch).
+  Branch protection on `main`: required checks `gate` + `codeowner-gate`, no force-push/deletion.
+
+### `/feature` command + agent factory
+- **`/feature <description>`** (`.claude/commands/feature.md`) is the on-ramp: branch off fresh
+  `main` → plan → build → local gate (`check` + Vitest) → PR → classify risk vs. CODEOWNERS →
+  `/code-review` → auto-merge if low-risk, else hand to Gian → drive to merge + confirm deploy.
+- **Agent factory:** when work splits into **independent slices**, fan out one subagent per slice in
+  its **own worktree**, each opening its **own PR** through the same tiered gate. **Coupled work
+  stays single-stream** (one branch, one PR) to avoid merge conflicts.
+- A **Stop hook** (`.claude/settings.json`) runs `npm run check && npm test` (Vitest, not Playwright)
+  locally so type/logic regressions are caught before a PR is opened.
 
 ## What the project is
 

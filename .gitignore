@@ -12,8 +12,13 @@ node_modules
 /qr
 *.log
 
-# Claude Code local settings + worktrees
-.claude/
+# Claude Code local settings + worktrees — ignore all except the shared
+# pipeline command + Stop hook (settings.local.json stays local-only).
+.claude/*
+!.claude/commands/
+.claude/commands/*
+!.claude/commands/feature.md
+!.claude/settings.json
 
 # Test artifacts
 /test-results
