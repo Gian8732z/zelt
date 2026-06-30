@@ -177,17 +177,31 @@ commands in the Commands section are **break-glass only**. Normal flow: branch �
 merge → auto-deploy.
 
 ### The CI gate (`.github/workflows/ci.yml`)
-On every PR and push to `main`:
-- **`gate`** (the required check): `npm run check` → Vitest unit tests → boot an **ephemeral local
-  Supabase** inside the runner + apply all migrations from scratch → `npm run build` → Playwright
-  E2E (reporter happy-path + offline-outbox→reconnect→sync). This is the source-of-truth quality bar.
-- **`codeowner-gate`** (required, PRs only): diffs the PR's changed files against `.github/CODEOWNERS`
-  and **fails** if a high-risk path is touched without an APPROVED review from a code owner. No owned
-  path → passes instantly (low-risk PRs stay 0-review auto-mergeable).
+On every PR and push to `main` (and on `merge_group`, see below). The quality bar is split into two
+parallel lanes behind one required check name so feedback is fast:
+- **`unit`** (fast lane, runs on all events): `npm run check` → Vitest unit tests. Seconds, no backend.
+- **`e2e`** (slow lane, skipped in the merge queue): boots an **ephemeral local Supabase** inside the
+  runner + applies all migrations from scratch → `npm run build` → Playwright E2E (reporter happy-path
+  + offline-outbox→reconnect→sync). The Playwright browser is cached (`~/.cache/ms-playwright`).
+- **`gate`** (the required check — name unchanged so branch protection is untouched): an aggregator
+  (`needs: [unit, e2e]`, `if: always()`) that passes iff `unit` succeeded **and** `e2e` succeeded
+  except inside the merge queue (where `e2e` is intentionally skipped — unit-only there for speed).
+- **`codeowner-gate`** (required, PRs + `merge_group`): diffs the PR's changed files against
+  `.github/CODEOWNERS` using the **shared matcher `scripts/codeowner-match.mjs`** (single source of
+  truth, also used by `/feature`) and **fails** if a high-risk path is touched without an APPROVED
+  review from a code owner. No owned path → passes instantly (low-risk PRs stay 0-review
+  auto-mergeable). On `merge_group` it short-circuits to pass (gating already happened at PR time).
 - **`deploy-preview`** (PRs): builds against **staging** Supabase and deploys a per-PR Cloudflare
   Pages preview (`pr-<n>.zelt.pages.dev`), comments the URL.
 - **`deploy-prod`** (push to `main`): migrates + deploys functions to **staging then prod**, builds,
-  deploys the prod SPA to `zelt.pages.dev`.
+  deploys the prod SPA to `zelt.pages.dev`. (Runs full `unit`+`e2e` on the post-merge `main` push, so
+  an e2e-only break the queue skipped is still caught before prod ships.)
+
+**Merge queue (plumbed, dormant):** the `merge_group` trigger + the `gate`/`codeowner-gate` handling
+above are ready for a GitHub merge queue, but one **cannot be enabled on this repo** — it's an
+**organization-only** feature (the `merge_queue` ruleset rule 422s; classic branch protection has no
+merge-queue field) and `zelt` is owned by a **personal account**. The plumbing is harmless and stays
+ready in case the repo ever moves into an org.
 
 ### Three backends
 1. **ephemeral-local** — booted per CI run, the isolated test gate (parallel-safe, migrations fresh).
@@ -214,7 +228,9 @@ path, `supabase.ts`/`config.ts`, `damage-types.ts`, `routes/zelt/**`, manager au
   its **own worktree**, each opening its **own PR** through the same tiered gate. **Coupled work
   stays single-stream** (one branch, one PR) to avoid merge conflicts.
 - A **Stop hook** (`.claude/settings.json`) runs `npm run check && npm test` (Vitest, not Playwright)
-  locally so type/logic regressions are caught before a PR is opened.
+  locally so type/logic regressions are caught before a PR is opened — but **guarded**: it skips when
+  `git diff` shows no changes under `src`/`supabase` (working tree or index), so Q&A/docs-only turns
+  don't pay the full gate.
 
 ## What the project is
 
