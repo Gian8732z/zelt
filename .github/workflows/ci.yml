@@ -4,6 +4,7 @@ on:
   pull_request:
   push:
     branches: [main]
+  merge_group:
 
 # Cancel superseded PR runs; never cancel a main/deploy run mid-flight.
 concurrency:
@@ -14,12 +15,10 @@ permissions:
   contents: read
 
 jobs:
-  # The merge gate: type-check + unit tests + E2E against an ephemeral local Supabase stack
-  # (isolated per run, migrations applied from scratch — no shared-DB races between parallel PRs).
-  gate:
+  # Fast lane: type-check + unit tests. Runs on every event (PR, push to main, merge_group) — it is
+  # the only quality job that runs inside the merge queue (e2e is skipped there for speed).
+  unit:
     runs-on: ubuntu-latest
-    env:
-      CI_REPORTER_TOKEN: ci-local-reporter-token
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -33,6 +32,23 @@ jobs:
 
       - name: Unit tests
         run: npm test
+
+  # Slow lane: build + Playwright E2E against an ephemeral local Supabase stack (isolated per run,
+  # migrations applied from scratch — no shared-DB races between parallel PRs). Deliberately NOT run
+  # inside the merge queue (unit-only there); full e2e still runs at PR time and on the post-merge
+  # push to main.
+  e2e:
+    if: github.event_name != 'merge_group'
+    runs-on: ubuntu-latest
+    env:
+      CI_REPORTER_TOKEN: ci-local-reporter-token
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
 
       - uses: supabase/setup-cli@v1
         with:
@@ -57,6 +73,12 @@ jobs:
       - name: Build (local env, baked into the SPA for E2E)
         run: npm run build
 
+      - name: Cache Playwright browser
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
+
       - name: Install Playwright browser
         run: npx playwright install --with-deps chromium
 
@@ -71,6 +93,25 @@ jobs:
           path: playwright-report/
           retention-days: 7
 
+  # The required merge gate (static check name so branch protection stays valid across all events).
+  # Aggregates unit + e2e: unit must always pass; e2e is required EXCEPT in the merge queue, where it
+  # is skipped by design. `if: always()` so this still runs when e2e is skipped.
+  gate:
+    needs: [unit, e2e]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Decide pass/fail from the lane results
+        run: |
+          echo "event=${{ github.event_name }} unit=${{ needs.unit.result }} e2e=${{ needs.e2e.result }}"
+          if [ "${{ needs.unit.result }}" != "success" ]; then
+            echo "unit lane failed"; exit 1
+          fi
+          if [ "${{ github.event_name }}" != "merge_group" ] && [ "${{ needs.e2e.result }}" != "success" ]; then
+            echo "e2e lane failed (required outside the merge queue)"; exit 1
+          fi
+          echo "gate passed"
+
   # Path-based human gate for the tiered-merge model. A PR that touches any CODEOWNERS path is
   # "high-risk" and this required check FAILS unless a code owner has approved it — so it can only
   # land via an admin merge (enforce_admins is off). PRs that touch no owned path pass instantly and
@@ -79,7 +120,7 @@ jobs:
   # low-risk PRs need no review), which left the code-owner requirement a no-op. CODEOWNERS is the
   # single source of truth — the matcher below reads it (anchored-prefix + exact-file patterns).
   codeowner-gate:
-    if: github.event_name == 'pull_request'
+    if: github.event_name == 'pull_request' || github.event_name == 'merge_group'
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -89,44 +130,34 @@ jobs:
       - uses: actions/github-script@v7
         with:
           script: |
+            // Merge queue: the code-owner requirement was already enforced at PR time. This required
+            // check must still report success on merge_group or the queue would deadlock.
+            if (context.eventName === 'merge_group') {
+              core.info('merge queue: code-owner gate enforced at PR time');
+              return;
+            }
+
             const fs = require('fs');
+            // Single source of truth — the same matcher the /feature command uses (no drift).
+            const { parseCodeowners, matchFiles } =
+              await import(`${process.env.GITHUB_WORKSPACE}/scripts/codeowner-match.mjs`);
 
-            // Parse CODEOWNERS into {pattern, owners[]} entries (skip comments/blanks).
-            const entries = fs.readFileSync('.github/CODEOWNERS', 'utf8')
-              .split('\n').map((l) => l.trim())
-              .filter((l) => l && !l.startsWith('#'))
-              .map((l) => { const p = l.split(/\s+/); return { pattern: p[0], owners: p.slice(1) }; });
-
-            // The subset of CODEOWNERS syntax this repo uses: root-anchored dir prefixes ("/foo/")
-            // and exact files ("/foo/bar.ts"). Returns true if `file` is owned by `pattern`.
-            const matches = (file, pattern) => {
-              let p = pattern.startsWith('/') ? pattern.slice(1) : pattern;
-              if (p.endsWith('/')) return file === p.slice(0, -1) || file.startsWith(p);
-              return file === p || file.startsWith(p + '/');
-            };
+            const entries = parseCodeowners(fs.readFileSync('.github/CODEOWNERS', 'utf8'));
 
             const files = await github.paginate(github.rest.pulls.listFiles, {
               owner: context.repo.owner, repo: context.repo.repo,
               pull_number: context.issue.number, per_page: 100,
             });
 
-            const owners = new Set();
-            const hits = [];
-            for (const f of files.map((x) => x.filename)) {
-              for (const e of entries) {
-                if (matches(f, e.pattern)) {
-                  hits.push(f);
-                  e.owners.forEach((o) => owners.add(o.replace(/^@/, '').toLowerCase()));
-                }
-              }
-            }
+            const { hits, owners: ownerArr } = matchFiles(files.map((x) => x.filename), entries);
+            const owners = new Set(ownerArr);
 
             if (hits.length === 0) {
               core.info('No code-owned (high-risk) paths touched — gate passes; eligible for auto-merge.');
               return;
             }
             const ownerList = [...owners].map((o) => '@' + o).join(', ');
-            core.notice(`High-risk paths touched (owner: ${ownerList}):\n${[...new Set(hits)].map((h) => '  - ' + h).join('\n')}`);
+            core.notice(`High-risk paths touched (owner: ${ownerList}):\n${hits.map((h) => '  - ' + h).join('\n')}`);
 
             // Latest decisive review per user (ignore COMMENTED/PENDING, per GitHub's own semantics).
             const reviews = await github.paginate(github.rest.pulls.listReviews, {
