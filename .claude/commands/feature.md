@@ -17,7 +17,17 @@ anything else.
 - Run the **`grilling`** skill on the feature description to stress-test it *before* any code: interview
   the user relentlessly about scope, edge cases, data model, the two-audience access boundary, offline
   behavior, and which existing files/decisions it touches. Surface unknowns and force choices now, while
-  it's cheap.
+  it's cheap. Follow the skill's core rules: **one question at a time**, wait for the answer before the
+  next, give your **recommended answer** with each, and if a question is answerable from the codebase,
+  explore instead of asking.
+- **Hybrid question format** — pick the channel per question:
+  - **Decidable choice** (A vs B vs C, yes/no, picking an approach/library/path): ask with
+    **`AskUserQuestion`** so the answer is selectable. Put your **recommended option first** and label it
+    `(Recommended)`; keep to its 2–4 option cap; rely on the built-in **`Other`** for anything off-menu.
+    Use `preview` when comparing concrete artifacts (mock layouts, code snippets, schema variants).
+  - **Open exploration** (data model shape, where it should live, what "done" means, anything that
+    doesn't reduce to a few options): ask as **free text** in the conversation — don't force it into chips.
+  - One question per turn either way; never batch.
 - Carry the hardened spec that comes out of the grilling into the planning in step 2 — the plan and the
   coupling decision should reflect what the interview settled, not the original one-liner.
 - Without `--grill`, do not interview: plan directly and only ask when genuinely blocked (default
