@@ -49,7 +49,7 @@
 	{#if email}
 		<header class="topbar">
 			<nav>
-				<a href="/verwalten">Flotte</a>
+				<a href="/verwalten">Übersicht</a>
 				<a href="/verwalten/reparaturen">Reparaturen</a>
 				<a href="/verwalten/statistik">Statistik</a>
 			</nav>
