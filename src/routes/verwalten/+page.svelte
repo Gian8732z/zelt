@@ -75,7 +75,7 @@
 
 <main>
 	<div class="head">
-		<h1>Flotte</h1>
+		<h1>Übersicht</h1>
 		<div class="head-actions">
 			<button class="secondary btn" onclick={openAdd}>+ Zelt</button>
 			<a class="secondary btn" href="/verwalten/lager">Lager einrichten</a>
@@ -159,6 +159,7 @@
 		align-items: center;
 		justify-content: space-between;
 		gap: 1rem;
+		margin-bottom: 1.25rem;
 	}
 	.head-actions {
 		display: flex;

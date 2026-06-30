@@ -196,8 +196,13 @@
 </script>
 
 <main>
-	<p><a href="/verwalten">← Flotte</a></p>
-	<h1>Zelt {tentId}</h1>
+	<p><a href="/verwalten">← Übersicht</a></p>
+	<div class="title-row">
+		<h1>Zelt {tentId}</h1>
+		<button class="secondary qr-btn" onclick={makeLabel} disabled={labelBusy}>
+			{labelBusy ? 'Wird erstellt…' : 'QR'}
+		</button>
+	</div>
 	{#if errorMsg}<div class="banner err">{errorMsg}</div>{/if}
 
 	{#if loading}
@@ -207,17 +212,17 @@
 			<div>
 				<strong>{tent?.out_of_service ? 'Ausser Betrieb' : 'In Betrieb'}</strong>
 				<p class="muted" style="margin: 0.25rem 0 0;">
-					Manuell gesetzt (z. B. eingelagert oder in Reparatur).
+					{#if tent?.out_of_service}
+						Manuell ausser Betrieb gesetzt (z. B. eingelagert oder in Reparatur).
+					{:else}
+						Einsatzbereit. Bei Bedarf manuell ausser Betrieb setzen (z. B. eingelagert oder in
+						Reparatur).
+					{/if}
 				</p>
 			</div>
-			<div class="service-actions">
-				<button class="secondary" onclick={makeLabel} disabled={labelBusy}>
-					{labelBusy ? 'Wird erstellt…' : 'QR'}
-				</button>
-				<button class={tent?.out_of_service ? 'danger' : 'secondary'} onclick={toggleService}>
-					{tent?.out_of_service ? 'Wieder in Betrieb' : 'Ausser Betrieb setzen'}
-				</button>
-			</div>
+			<button class={tent?.out_of_service ? 'danger' : 'secondary'} onclick={toggleService}>
+				{tent?.out_of_service ? 'Wieder in Betrieb' : 'Ausser Betrieb setzen'}
+			</button>
 		</div>
 
 		<h2>Schadensverlauf</h2>
@@ -426,16 +431,25 @@
 </main>
 
 <style>
-	.service {
+	.title-row {
 		display: flex;
 		align-items: center;
 		justify-content: space-between;
 		gap: 1rem;
 	}
-	.service-actions {
-		display: flex;
-		gap: 0.5rem;
+	.title-row h1 {
+		margin: 0;
+	}
+	.qr-btn {
 		flex: none;
+		min-height: 44px;
+		padding: 0 1.2rem;
+	}
+	.service {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		gap: 1rem;
 	}
 	.service button {
 		flex: none;

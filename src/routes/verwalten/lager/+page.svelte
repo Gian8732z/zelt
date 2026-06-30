@@ -93,7 +93,7 @@
 </script>
 
 <main>
-	<p><a href="/verwalten">← Flotte</a></p>
+	<p><a href="/verwalten">← Übersicht</a></p>
 	<h1>Lager einrichten</h1>
 	<p class="muted">
 		Weise jedem Zelt eine Gruppe zu. Zelte ohne Gruppe, die «Ausser Betrieb» sind, erscheinen
