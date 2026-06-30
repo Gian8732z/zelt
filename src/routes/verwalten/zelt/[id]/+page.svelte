@@ -4,8 +4,10 @@
 	import { getSupabase } from '$lib/supabase';
 	import { PHOTO_BUCKET } from '$lib/config';
 	import { DAMAGE_STATUS_LABELS, type Damage, type Tent } from '$lib/types';
+	import { downloadTentLabel } from '$lib/tent-label';
 
 	const tentId = $derived(Number($page.params.id));
+	let labelBusy = $state(false);
 	let tent = $state<Tent | null>(null);
 	let damages = $state<Damage[]>([]);
 	let photoUrls = $state<Record<string, string>>({});
@@ -149,6 +151,18 @@
 		await load();
 	}
 
+	async function makeLabel() {
+		labelBusy = true;
+		errorMsg = null;
+		try {
+			await downloadTentLabel(tentId, window.location.origin);
+		} catch (e) {
+			errorMsg = e instanceof Error ? e.message : 'Etikett konnte nicht erstellt werden';
+		} finally {
+			labelBusy = false;
+		}
+	}
+
 	function fmt(iso: string | null): string {
 		if (!iso) return '';
 		return new Date(iso).toLocaleString('de-CH', { dateStyle: 'medium', timeStyle: 'short' });
@@ -172,6 +186,18 @@
 			</div>
 			<button class={tent?.out_of_service ? 'danger' : 'secondary'} onclick={toggleService}>
 				{tent?.out_of_service ? 'Wieder in Betrieb' : 'Ausser Betrieb setzen'}
+			</button>
+		</div>
+
+		<div class="card service">
+			<div>
+				<strong>Etikett</strong>
+				<p class="muted" style="margin: 0.25rem 0 0;">
+					PDF mit QR-Code zum Aufkleben am Zelt.
+				</p>
+			</div>
+			<button class="secondary" onclick={makeLabel} disabled={labelBusy}>
+				{labelBusy ? 'Wird erstellt…' : 'Etikett (PDF)'}
 			</button>
 		</div>
 
