@@ -54,10 +54,16 @@ describe('isValidDamage', () => {
 		expect(isValidDamage('innenzelt', 'reissverschluss_defekt')).toBe(true);
 	});
 
+	it('accepts the new Abspannung-Haken mode on both Aussenzelt and Innenzelt', () => {
+		expect(isValidDamage('aussenzelt', 'abspannung_haken_defekt')).toBe(true);
+		expect(isValidDamage('innenzelt', 'abspannung_haken_defekt')).toBe(true);
+	});
+
 	it('rejects modes a component does not offer, and unknown components', () => {
 		expect(isValidDamage('heringe', 'stoff_gerissen')).toBe(false);
 		expect(isValidDamage('stangen', 'oese_kaputt')).toBe(false);
 		expect(isValidDamage('nonsense', 'fehlt')).toBe(false);
+		expect(isValidDamage('vorzelt', 'abspannung_haken_defekt')).toBe(false);
 	});
 });
 
@@ -65,6 +71,9 @@ describe('snapshotLabel', () => {
 	it('joins component and mode labels with an en dash', () => {
 		expect(snapshotLabel('aussenzelt', 'stoff_gerissen')).toBe('Aussenzelt – Stoff gerissen');
 		expect(snapshotLabel('stangen', 'verbogen')).toBe('Stangen – verbogen');
+		expect(snapshotLabel('aussenzelt', 'abspannung_haken_defekt')).toBe(
+			'Aussenzelt – Abspannung Haken defekt'
+		);
 	});
 
 	it('renders the Sonstiges catch-all without a redundant suffix', () => {

@@ -19,6 +19,7 @@ export type ComponentKey =
 export type DamageKind =
 	| 'stoff_gerissen'
 	| 'abspannung_gerissen'
+	| 'abspannung_haken_defekt'
 	| 'aufhaengung_gerissen'
 	| 'schnur_aussenzelt_gerissen'
 	| 'oese_kaputt'
@@ -48,6 +49,7 @@ export interface Component {
 // Shared mode constructors so the per-component menus read as curated subsets of one vocabulary.
 const STOFF: DamageMode = { kind: 'stoff_gerissen', label: 'Stoff gerissen', input: 'none' };
 const ABSPANNUNG: DamageMode = { kind: 'abspannung_gerissen', label: 'Abspannung gerissen', input: 'count' };
+const ABSPANNUNG_HAKEN: DamageMode = { kind: 'abspannung_haken_defekt', label: 'Abspannung Haken defekt', input: 'count' };
 const AUFHAENGUNG: DamageMode = { kind: 'aufhaengung_gerissen', label: 'Aufhängung gerissen', input: 'count' };
 const SCHNUR_AUSSEN: DamageMode = { kind: 'schnur_aussenzelt_gerissen', label: 'Schnur-Aussenzelt gerissen', input: 'count' };
 const OESE: DamageMode = { kind: 'oese_kaputt', label: 'Öse kaputt', input: 'count' };
@@ -58,8 +60,8 @@ const SONSTIGES: DamageMode = { kind: 'sonstiges', label: 'Sonstiges', input: 'n
 const fehlt = (input: DamageInput = 'none'): DamageMode => ({ kind: 'fehlt', label: 'fehlt', input, exclusive: true });
 
 export const COMPONENTS: Component[] = [
-	{ component: 'aussenzelt', label: 'Aussenzelt', modes: [STOFF, ABSPANNUNG, OESE, fehlt(), SONSTIGES] },
-	{ component: 'innenzelt', label: 'Innenzelt', modes: [STOFF, AUFHAENGUNG, SCHNUR_AUSSEN, REISSVERSCHLUSS, BODEN, fehlt(), SONSTIGES] },
+	{ component: 'aussenzelt', label: 'Aussenzelt', modes: [STOFF, ABSPANNUNG, ABSPANNUNG_HAKEN, OESE, fehlt(), SONSTIGES] },
+	{ component: 'innenzelt', label: 'Innenzelt', modes: [STOFF, AUFHAENGUNG, ABSPANNUNG_HAKEN, SCHNUR_AUSSEN, REISSVERSCHLUSS, BODEN, fehlt(), SONSTIGES] },
 	{ component: 'vorzelt', label: 'Vorzelt', modes: [STOFF, ABSPANNUNG, OESE, fehlt(), SONSTIGES] },
 	{ component: 'stangen', label: 'Stangen', modes: [VERBOGEN, fehlt()] },
 	{ component: 'heringe', label: 'Heringe', modes: [fehlt('count')] },
