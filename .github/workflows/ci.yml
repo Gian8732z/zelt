@@ -71,6 +71,83 @@ jobs:
           path: playwright-report/
           retention-days: 7
 
+  # Path-based human gate for the tiered-merge model. A PR that touches any CODEOWNERS path is
+  # "high-risk" and this required check FAILS unless a code owner has approved it — so it can only
+  # land via an admin merge (enforce_admins is off). PRs that touch no owned path pass instantly and
+  # stay eligible for 0-review auto-merge. This is what actually enforces the tiers: GitHub does NOT
+  # honor `require_code_owner_reviews` while `required_approving_review_count` is 0 (our config, so
+  # low-risk PRs need no review), which left the code-owner requirement a no-op. CODEOWNERS is the
+  # single source of truth — the matcher below reads it (anchored-prefix + exact-file patterns).
+  codeowner-gate:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+
+            // Parse CODEOWNERS into {pattern, owners[]} entries (skip comments/blanks).
+            const entries = fs.readFileSync('.github/CODEOWNERS', 'utf8')
+              .split('\n').map((l) => l.trim())
+              .filter((l) => l && !l.startsWith('#'))
+              .map((l) => { const p = l.split(/\s+/); return { pattern: p[0], owners: p.slice(1) }; });
+
+            // The subset of CODEOWNERS syntax this repo uses: root-anchored dir prefixes ("/foo/")
+            // and exact files ("/foo/bar.ts"). Returns true if `file` is owned by `pattern`.
+            const matches = (file, pattern) => {
+              let p = pattern.startsWith('/') ? pattern.slice(1) : pattern;
+              if (p.endsWith('/')) return file === p.slice(0, -1) || file.startsWith(p);
+              return file === p || file.startsWith(p + '/');
+            };
+
+            const files = await github.paginate(github.rest.pulls.listFiles, {
+              owner: context.repo.owner, repo: context.repo.repo,
+              pull_number: context.issue.number, per_page: 100,
+            });
+
+            const owners = new Set();
+            const hits = [];
+            for (const f of files.map((x) => x.filename)) {
+              for (const e of entries) {
+                if (matches(f, e.pattern)) {
+                  hits.push(f);
+                  e.owners.forEach((o) => owners.add(o.replace(/^@/, '').toLowerCase()));
+                }
+              }
+            }
+
+            if (hits.length === 0) {
+              core.info('No code-owned (high-risk) paths touched — gate passes; eligible for auto-merge.');
+              return;
+            }
+            const ownerList = [...owners].map((o) => '@' + o).join(', ');
+            core.notice(`High-risk paths touched (owner: ${ownerList}):\n${[...new Set(hits)].map((h) => '  - ' + h).join('\n')}`);
+
+            // Latest decisive review per user (ignore COMMENTED/PENDING, per GitHub's own semantics).
+            const reviews = await github.paginate(github.rest.pulls.listReviews, {
+              owner: context.repo.owner, repo: context.repo.repo,
+              pull_number: context.issue.number, per_page: 100,
+            });
+            const latest = new Map();
+            for (const r of reviews) {
+              if (!r.user || r.state === 'COMMENTED' || r.state === 'PENDING') continue;
+              latest.set(r.user.login.toLowerCase(), r.state);
+            }
+            const approved = [...owners].some((o) => latest.get(o) === 'APPROVED');
+            if (approved) {
+              core.info('Approved by a code owner — gate passes.');
+              return;
+            }
+            core.setFailed(
+              `High-risk paths require a code-owner approval (${ownerList}). None found. ` +
+              `A code owner must approve, or a repo admin can merge via the admin override.`
+            );
+
   # Per-PR preview on Cloudflare Pages, backed by the staging Supabase project.
   deploy-preview:
     needs: gate
