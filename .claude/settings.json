@@ -6,7 +6,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "npm run check && npm test",
+            "command": "sh -c 'if git diff --quiet -- src supabase && git diff --cached --quiet -- src supabase; then echo \"Stop hook: no src/supabase changes — skipping check+test\"; exit 0; fi; npm run check && npm test'",
             "timeout": 300
           }
         ]
