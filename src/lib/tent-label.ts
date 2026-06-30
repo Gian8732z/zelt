@@ -54,25 +54,28 @@ export async function downloadTentLabel(tentId: number, origin: string): Promise
 		width: 600
 	});
 
-	// A6 portrait, 105 × 148 mm — a tidy single sticker.
-	const doc = new jsPDF({ unit: 'mm', format: 'a6' });
-	const pageW = doc.internal.pageSize.getWidth();
-	const center = pageW / 2;
+	// A5 landscape, 210 × 148 mm — QR on the left, text block on the right.
+	const doc = new jsPDF({ unit: 'mm', format: 'a5', orientation: 'landscape' });
+	const pageH = doc.internal.pageSize.getHeight();
+
+	const qrSize = 110;
+	doc.addImage(qrDataUrl, 'PNG', 14, (pageH - qrSize) / 2, qrSize, qrSize);
+
+	// Centre of the right-hand text column.
+	const textX = 165;
+	const textW = 80;
 
 	doc.setFont('helvetica', 'bold');
-	doc.setFontSize(34);
-	doc.text(label.title, center, 24, { align: 'center' });
-
-	const qrSize = 70;
-	doc.addImage(qrDataUrl, 'PNG', center - qrSize / 2, 34, qrSize, qrSize);
+	doc.setFontSize(48);
+	doc.text(label.title, textX, 56, { align: 'center' });
 
 	doc.setFont('helvetica', 'bold');
-	doc.setFontSize(14);
-	doc.text(label.cta, center, 118, { align: 'center', maxWidth: pageW - 16 });
+	doc.setFontSize(20);
+	doc.text(label.cta, textX, 86, { align: 'center', maxWidth: textW });
 
 	doc.setFont('helvetica', 'normal');
-	doc.setFontSize(10);
-	doc.text(label.urlDisplay, center, 130, { align: 'center', maxWidth: pageW - 16 });
+	doc.setFontSize(12);
+	doc.text(label.urlDisplay, textX, 110, { align: 'center', maxWidth: textW });
 
 	doc.save(labelFileName(tentId));
 }
