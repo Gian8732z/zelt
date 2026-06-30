@@ -197,32 +197,32 @@
 
 <main>
 	<p><a href="/verwalten">← Übersicht</a></p>
-	<div class="title-row">
-		<h1>Zelt {tentId}</h1>
-		<button class="secondary qr-btn" onclick={makeLabel} disabled={labelBusy}>
-			{labelBusy ? 'Wird erstellt…' : 'QR'}
-		</button>
-	</div>
+	<h1>Zelt {tentId}</h1>
 	{#if errorMsg}<div class="banner err">{errorMsg}</div>{/if}
 
 	{#if loading}
 		<p class="muted">Laden…</p>
 	{:else}
-		<div class="card service">
-			<div>
-				<strong>{tent?.out_of_service ? 'Ausser Betrieb' : 'In Betrieb'}</strong>
-				<p class="muted" style="margin: 0.25rem 0 0;">
-					{#if tent?.out_of_service}
-						Manuell ausser Betrieb gesetzt (z. B. eingelagert oder in Reparatur).
-					{:else}
-						Einsatzbereit. Bei Bedarf manuell ausser Betrieb setzen (z. B. eingelagert oder in
-						Reparatur).
-					{/if}
-				</p>
-			</div>
-			<button class={tent?.out_of_service ? 'danger' : 'secondary'} onclick={toggleService}>
-				{tent?.out_of_service ? 'Wieder in Betrieb' : 'Ausser Betrieb setzen'}
+		<div class="service-row">
+			<button class="secondary qr-btn" onclick={makeLabel} disabled={labelBusy}>
+				{labelBusy ? 'Wird erstellt…' : 'QR'}
 			</button>
+			<div class="card service">
+				<div>
+					<strong>{tent?.out_of_service ? 'Ausser Betrieb' : 'In Betrieb'}</strong>
+					<p class="muted" style="margin: 0.25rem 0 0;">
+						{#if tent?.out_of_service}
+							Manuell ausser Betrieb gesetzt (z. B. eingelagert oder in Reparatur).
+						{:else}
+							Einsatzbereit. Bei Bedarf manuell ausser Betrieb setzen (z. B. eingelagert oder in
+							Reparatur).
+						{/if}
+					</p>
+				</div>
+				<button class={tent?.out_of_service ? 'danger' : 'secondary'} onclick={toggleService}>
+					{tent?.out_of_service ? 'Wieder in Betrieb' : 'Ausser Betrieb setzen'}
+				</button>
+			</div>
 		</div>
 
 		<h2>Schadensverlauf</h2>
@@ -431,28 +431,23 @@
 </main>
 
 <style>
-	.title-row {
+	.service-row {
 		display: flex;
-		align-items: center;
-		justify-content: space-between;
-		gap: 1rem;
-	}
-	.title-row h1 {
-		margin: 0;
+		align-items: stretch;
+		gap: 0.75rem;
 	}
 	.qr-btn {
-		flex: none;
+		flex: 1 1 0;
 		min-height: 44px;
-		padding: 0 1.2rem;
 	}
 	.service {
+		flex: 1 1 0;
 		display: flex;
-		align-items: center;
+		flex-direction: column;
 		justify-content: space-between;
-		gap: 1rem;
+		gap: 0.75rem;
 	}
 	.service button {
-		flex: none;
 		min-height: 44px;
 	}
 	.row {
