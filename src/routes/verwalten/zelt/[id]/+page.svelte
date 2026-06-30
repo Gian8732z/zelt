@@ -1,8 +1,10 @@
 <script lang="ts">
 	import { page } from '$app/stores';
+	import { goto } from '$app/navigation';
 	import { onMount } from 'svelte';
 	import { getSupabase } from '$lib/supabase';
 	import { PHOTO_BUCKET } from '$lib/config';
+	import { canHardDelete } from '$lib/tents';
 	import { DAMAGE_STATUS_LABELS, type Damage, type Tent } from '$lib/types';
 	import { downloadTentLabel } from '$lib/tent-label';
 
@@ -26,6 +28,12 @@
 	let bulkBusy = $state(false);
 
 	const openDamages = $derived(damages.filter((d) => d.status === 'open'));
+
+	// Removal: a tent with no history can be hard-deleted; one with reports is retired (one-way) so
+	// the append-only log survives. The button below swaps on this so the manager never sees the rule.
+	const removable = $derived(canHardDelete(damages.length));
+	let removeConfirm = $state(false);
+	let removeBusy = $state(false);
 
 	async function load() {
 		const sb = getSupabase();
@@ -161,6 +169,24 @@
 		} finally {
 			labelBusy = false;
 		}
+	}
+
+	async function removeTent() {
+		const sb = getSupabase();
+		if (!sb) return;
+		removeBusy = true;
+		errorMsg = null;
+		// Empty tent → real DELETE; tent with history → retire (keeps its damage rows for the stats).
+		const { error } = removable
+			? await sb.from('tents').delete().eq('tent_id', tentId)
+			: await sb.from('tents').update({ retired: true }).eq('tent_id', tentId);
+		removeBusy = false;
+		if (error) {
+			errorMsg = error.message;
+			removeConfirm = false;
+			return;
+		}
+		await goto('/verwalten');
 	}
 
 	function fmt(iso: string | null): string {
@@ -359,6 +385,43 @@
 				</div>
 			{/each}
 		{/if}
+
+		<div class="card remove">
+			<div>
+				<strong>{removable ? 'Zelt löschen' : 'Zelt ausmustern'}</strong>
+				<p class="muted" style="margin: 0.25rem 0 0;">
+					{#if removable}
+						Dieses Zelt hat keine Meldungen und kann entfernt werden.
+					{:else}
+						Dieses Zelt hat einen Schadensverlauf. Es wird ausgemustert (dauerhaft aus der Flotte
+						entfernt); der Verlauf bleibt für die Statistik erhalten.
+					{/if}
+				</p>
+			</div>
+			{#if removeConfirm}
+				<div class="inline-form">
+					<p class="inline-confirm-text">
+						{removable ? 'Wirklich löschen?' : 'Wirklich ausmustern? Das lässt sich nicht rückgängig machen.'}
+					</p>
+					<div class="actions">
+						<button class="danger" disabled={removeBusy} onclick={removeTent}>
+							{removeBusy
+								? 'Wird gespeichert…'
+								: removable
+									? 'Ja, löschen'
+									: 'Ja, ausmustern'}
+						</button>
+						<button class="secondary" disabled={removeBusy} onclick={() => (removeConfirm = false)}>
+							Abbrechen
+						</button>
+					</div>
+				</div>
+			{:else}
+				<button class="danger" onclick={() => (removeConfirm = true)}>
+					{removable ? 'Zelt löschen' : 'Zelt ausmustern'}
+				</button>
+			{/if}
+		</div>
 	{/if}
 </main>
 
@@ -451,5 +514,14 @@
 	}
 	.bulk-label {
 		margin: 0 0 0.5rem;
+	}
+	.remove {
+		margin-top: 1.5rem;
+		border: 1px solid var(--red, #c0392b);
+	}
+	.remove > button {
+		margin-top: 0.75rem;
+		min-height: 44px;
+		padding: 0 1.2rem;
 	}
 </style>
