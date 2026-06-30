@@ -3,10 +3,19 @@
 	import { getSupabase } from '$lib/supabase';
 	import { TENT_STATUS_LABELS, type TentWithStatus } from '$lib/types';
 	import { groupTents } from '$lib/camp-groups';
+	import { nextTentId, validateNewTentId } from '$lib/tents';
 
 	let tents = $state<TentWithStatus[]>([]);
 	let loading = $state(true);
 	let errorMsg = $state<string | null>(null);
+
+	// Add-tent inline form. existingIds covers active AND retired tents (read straight from `tents`,
+	// not the retired-filtered overview), so the default + collision check never reuse a reserved id.
+	let addOpen = $state(false);
+	let addId = $state<number | null>(null);
+	let addBusy = $state(false);
+	let addError = $state<string | null>(null);
+	let existingIds = $state<number[]>([]);
 
 	const sections = $derived(groupTents(tents));
 
@@ -30,13 +39,77 @@
 	}
 
 	onMount(load);
+
+	async function openAdd() {
+		const sb = getSupabase();
+		if (!sb) return;
+		addError = null;
+		// All ids incl. retired — retired ones keep their number reserved (their history references it).
+		const { data } = await sb.from('tents').select('tent_id');
+		existingIds = (data ?? []).map((t) => t.tent_id as number);
+		addId = nextTentId(existingIds);
+		addOpen = true;
+	}
+
+	async function createTent() {
+		const sb = getSupabase();
+		if (!sb || addId === null) return;
+		const err = validateNewTentId(addId, existingIds);
+		if (err) {
+			addError = err;
+			return;
+		}
+		addBusy = true;
+		addError = null;
+		// New tent: in service, no camp_group → renders under "Nicht im Lager" until assigned in Lager.
+		const { error } = await sb.from('tents').insert({ tent_id: addId });
+		addBusy = false;
+		if (error) {
+			addError = error.code === '23505' ? `Zelt ${addId} existiert bereits.` : error.message;
+			return;
+		}
+		addOpen = false;
+		await load();
+	}
 </script>
 
 <main>
 	<div class="head">
 		<h1>Flotte</h1>
-		<a class="secondary btn" href="/verwalten/lager">Lager einrichten</a>
+		<div class="head-actions">
+			<button class="secondary btn" onclick={openAdd}>+ Zelt</button>
+			<a class="secondary btn" href="/verwalten/lager">Lager einrichten</a>
+		</div>
 	</div>
+
+	{#if addOpen}
+		<div class="card add-form">
+			<p class="add-label"><strong>Neues Zelt hinzufügen</strong></p>
+			<label class="add-field">
+				Zelt-Nr.
+				<input
+					type="number"
+					min="1"
+					inputmode="numeric"
+					bind:value={addId}
+					oninput={() => (addError = null)}
+				/>
+			</label>
+			<p class="muted add-hint">
+				Landet ohne Gruppe unter «Nicht im Lager» – Gruppe später unter «Lager einrichten».
+			</p>
+			{#if addError}<div class="banner err">{addError}</div>{/if}
+			<div class="actions">
+				<button disabled={addBusy} onclick={createTent}>
+					{addBusy ? 'Wird gespeichert…' : 'Hinzufügen'}
+				</button>
+				<button class="secondary" disabled={addBusy} onclick={() => (addOpen = false)}>
+					Abbrechen
+				</button>
+			</div>
+		</div>
+	{/if}
+
 	{#if errorMsg}<div class="banner err">{errorMsg}</div>{/if}
 	{#if loading}
 		<p class="muted">Laden…</p>
@@ -87,6 +160,10 @@
 		justify-content: space-between;
 		gap: 1rem;
 	}
+	.head-actions {
+		display: flex;
+		gap: 0.5rem;
+	}
 	.btn {
 		text-decoration: none;
 		min-height: 40px;
@@ -96,6 +173,36 @@
 		border-radius: var(--radius);
 		font-weight: 600;
 		white-space: nowrap;
+		cursor: pointer;
+	}
+	.add-form {
+		margin-bottom: 1.25rem;
+	}
+	.add-label {
+		margin: 0 0 0.5rem;
+	}
+	.add-field {
+		display: flex;
+		align-items: center;
+		gap: 0.6rem;
+		font-weight: 600;
+	}
+	.add-field input {
+		width: 6rem;
+		min-height: 44px;
+	}
+	.add-hint {
+		margin: 0.5rem 0 0;
+		font-size: 0.85rem;
+	}
+	.add-form .actions {
+		display: flex;
+		gap: 0.5rem;
+		margin-top: 0.75rem;
+	}
+	.add-form .actions button {
+		min-height: 44px;
+		padding: 0 1.2rem;
 	}
 	.kpi-strip {
 		display: flex;

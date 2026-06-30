@@ -6,6 +6,7 @@ export interface Tent {
 	label: string | null;
 	camp_group: string | null;
 	out_of_service: boolean;
+	retired: boolean;
 	acquired_on: string | null;
 	notes: string | null;
 }
