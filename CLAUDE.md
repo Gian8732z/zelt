@@ -16,8 +16,9 @@ history is the changelog** — this section holds only current facts.
 - **App:** https://zelt.pages.dev (Cloudflare Pages, project `zelt`), deployed by CI on merge to
   `main` — see "Pipeline & contribution workflow".
 - **Supabase:** prod `kzlmbkadbzfhqzhaupiu` ("Zelt", eu-central-1) — schema through `0008`,
-  `melden` + `zelt-info` deployed, `REPORTER_TOKEN` + `CURRENT_CAMP` ("Sola 26") secrets set.
-  Staging `lcfmxoaejtlnxtczenqu` backs the per-PR preview deploys.
+  `melden` + `zelt-info` deployed, `REPORTER_TOKEN` + `CURRENT_CAMP` ("Sola 26") + `RESEND_API_KEY`
+  (manager email notifications) secrets set. Staging `lcfmxoaejtlnxtczenqu` backs the per-PR preview
+  deploys.
 - **Reporter URL / QR target:** token-less per-tent URLs `https://zelt.pages.dev/zelt/<id>`; the
   shared secret is bundled in-app (`PUBLIC_REPORTER_TOKEN`), not in the URL. The token-less
   `/melden` picker is the shared-link fallback — and the primary flow at Sola 26 so far (**no QR
@@ -31,6 +32,15 @@ history is the changelog** — this section holds only current facts.
 - **Verified in production:** reporter submit incl. the **photo path** (client EXIF-strip →
   `melden` upload → manager signed-URL view) confirmed with real reports during Sola 26
   (2026-07-02). The offline outbox is exercised by the Playwright E2E in CI on every PR.
+- **Manager email notifications (shipped 2026-07-02):** `melden` emails every manager on each new
+  damage report — one email per submission (fired only for genuinely-inserted rows, so retried
+  offline syncs don't double-send), off the critical path via `EdgeRuntime.waitUntil` (a send
+  failure never fails the reporter's submit). Recipients are resolved dynamically from `auth.users`
+  (invite-only ⇒ every user is a manager). Delivery via the Resend HTTP API gated on `RESEND_API_KEY`
+  (no key ⇒ no-op, so local/CI never send). German body + deep-link to `/verwalten/zelt/<id>`. Uses
+  Resend's `onboarding@resend.dev` sender, which **only delivers to the Resend account owner** until
+  a sending domain is verified — fine while Gian is the sole manager; the Materialwart's address will
+  need a verified domain (see Status).
 
 **Feature surface (all deployed):** reporter per-tent status page + component-first damage form
 (component → modes, per-item photo/comment/Anzahl, required remembered reporter name,
@@ -119,7 +129,9 @@ the cloud values live in `.env.production` (used by `npm run build`), local in `
 - `supabase/functions/melden/` — guarded public submit (Deno): token gate, rate limit; one
   submission inserts one row per damage item, idempotent upsert by `report_id`; a **per-item** photo
   (multipart part `photo_<report_id>` → `<report_id>.jpg`, ≤4 MB each / ≤10 MB total) and stamps
-  `reporter_name` + the `CURRENT_CAMP` env onto every row. `supabase/functions/zelt-info/` —
+  `reporter_name` + the `CURRENT_CAMP` env onto every row. After the insert it emails every manager
+  (`notify.ts`: dynamic `auth.users` recipients + Resend, gated on `RESEND_API_KEY`, off the critical
+  path). `supabase/functions/zelt-info/` —
   token-gated single-tent status read (no photos/history to anon). Both `verify_jwt = false` (token
   is the gate).
 - Full design rationale for the per-tent QR + structured form: `docs/PRD-per-tent-qr-info-page.md`.
@@ -134,7 +146,9 @@ manager-only `notes`/`acquired_on` stay hidden even though RLS itself is row-lev
 
 - **Mid-camp (Sola 26 runs now; feature freeze — fixes only):** print + mount the per-tent QR
   labels (tooling shipped, paper pending); create the Materialwart's manager account (Supabase
-  invite — needed for the post-camp repair day).
+  invite — needed for the post-camp repair day). **When that account is created:** verify a sending
+  domain in Resend so email notifications reach the Materialwart too — `onboarding@resend.dev` only
+  delivers to the Resend account owner, so today only Gian receives them.
 - **Data caveat (2026-07-01):** report `17750d6c…` (tent 10, Reissverschluss, filed 07-01 10:47)
   reads `camp='VOR SOLA'` although it was inserted **after** migration `0008` ran on prod
   (06-30 13:46, per CI logs) and `CURRENT_CAMP` has verifiably been "Sola 26" since 06-28 — so it
@@ -187,7 +201,7 @@ ready in case the repo ever moves into an org.
 
 Build-time env (URLs, anon keys, `PUBLIC_REPORTER_TOKEN`) is injected by CI from GitHub
 secrets/vars, picked by branch. `.env*` files stay local-dev-only. Function secrets
-(`REPORTER_TOKEN`/`CURRENT_CAMP`) remain hand-managed via `supabase secrets set` — never in CI.
+(`REPORTER_TOKEN`/`CURRENT_CAMP`/`RESEND_API_KEY`) remain hand-managed via `supabase secrets set` — never in CI.
 
 ### Tiered merge (the code-owner gate)
 `.github/CODEOWNERS` lists **high-risk paths** (schema + functions, the reporter write/sync/photo
