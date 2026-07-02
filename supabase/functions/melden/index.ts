@@ -8,6 +8,11 @@
 // comment of its own. The current camp (CURRENT_CAMP) and the reporter name are stamped onto every
 // row of the submission.
 import { createClient } from 'jsr:@supabase/supabase-js@2';
+import { notifyManagers } from './notify.ts';
+
+// Supabase Edge runtime global for background tasks (deferred work that outlives the response).
+// Declared here so the reference type-checks outside the edge runtime; guarded with typeof at use.
+declare const EdgeRuntime: { waitUntil(promise: Promise<unknown>): void } | undefined;
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
 const SERVICE_ROLE = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
@@ -168,10 +173,22 @@ Deno.serve(async (req) => {
 		status: 'open'
 	}));
 
-	const { error: insErr } = await admin
+	// .select() returns only the rows that were actually inserted (ON CONFLICT DO NOTHING skips
+	// duplicates), so a retried submission after a lost ack inserts nothing here — and sends no
+	// duplicate email.
+	const { data: inserted, error: insErr } = await admin
 		.from('damages')
-		.upsert(rows, { onConflict: 'report_id', ignoreDuplicates: true });
+		.upsert(rows, { onConflict: 'report_id', ignoreDuplicates: true })
+		.select('report_id');
 	if (insErr) return json({ error: 'insert_failed', detail: insErr.message }, 500);
+
+	// Notify managers of a genuinely new report — off the critical path (never blocks or fails the
+	// reporter's submit) and a no-op when RESEND_API_KEY is unset (local/CI).
+	if (inserted && inserted.length > 0) {
+		const notify = notifyManagers(admin, { tent_id, reporter_name, camp: CURRENT_CAMP || null, items });
+		if (typeof EdgeRuntime !== 'undefined') EdgeRuntime.waitUntil(notify);
+		else await notify;
+	}
 
 	return json({ ok: true, inserted: rows.length });
 });
