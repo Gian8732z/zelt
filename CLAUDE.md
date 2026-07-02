@@ -4,70 +4,44 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Current state
 
-**Deployed and live in the cloud.** SvelteKit (Svelte 5 runes, TypeScript, SPA via
-`adapter-static`) + Supabase (Postgres, Auth, Storage, one Edge Function), German-only UI.
-`npm run check` and `npm run build` pass. The reporter form, manager login → dashboard → tent
-detail, and the `melden` function (token gate, insert, idempotency) were all driven in a real
-browser against the *local* stack with zero console errors; demo data is seeded (tents 5/7/12
-damaged). The app still degrades to a "not configured" notice when env is absent.
+**Live in production, mid-camp: Sola 26 (started 2026-06-27) is the first real-world test run.**
+The mission is improving the Abteilung's tent **repair process** — camp reporting collects the
+data; the post-camp repair day (Reparaturliste + Statistik) is the payoff. SvelteKit (Svelte 5
+runes, TypeScript, SPA via `adapter-static`) + Supabase (Postgres, Auth, Storage, two Edge
+Functions), German-only UI. Schema is at migration `0008`; Vitest unit tests + Playwright E2E run
+in CI on every PR. The app degrades to a "not configured" notice when env is absent. **Git
+history is the changelog** — this section holds only current facts.
 
-**Production (deployed 2026-06-22; damage form redesigned 2026-06-27; camp-groups + damage-form features deployed 2026-06-28; manager overview + Statistik deployed 2026-06-29):**
-- **App:** https://zelt.pages.dev (Cloudflare Pages, project `zelt`, direct-upload deploy)
-- **Supabase:** cloud project `kzlmbkadbzfhqzhaupiu` ("Zelt", eu-central-1). Schema pushed
-  (through migration `0005`), `melden` + `zelt-info` functions deployed, `REPORTER_TOKEN` +
-  `CURRENT_CAMP` secrets set.
-- **Reporter URL / QR target:** token-less per-tent URLs `https://zelt.pages.dev/zelt/<id>` (1–20);
-  the shared secret is bundled in-app (`PUBLIC_REPORTER_TOKEN`), not in the URL. A token-less
-  `/melden` picker is the single-poster fallback. Generate the 20 QR SVGs with
-  `BASE_URL=https://zelt.pages.dev node scripts/generate-tent-qr.mjs` (no QRs printed for Sola 26 yet).
-- **Manager login:** `gian.ledergerber@gmail.com` at `/verwalten/anmelden`.
+**Production:**
+- **App:** https://zelt.pages.dev (Cloudflare Pages, project `zelt`), deployed by CI on merge to
+  `main` — see "Pipeline & contribution workflow".
+- **Supabase:** prod `kzlmbkadbzfhqzhaupiu` ("Zelt", eu-central-1) — schema through `0008`,
+  `melden` + `zelt-info` deployed, `REPORTER_TOKEN` + `CURRENT_CAMP` ("Sola 26") secrets set.
+  Staging `lcfmxoaejtlnxtczenqu` backs the per-PR preview deploys.
+- **Reporter URL / QR target:** token-less per-tent URLs `https://zelt.pages.dev/zelt/<id>`; the
+  shared secret is bundled in-app (`PUBLIC_REPORTER_TOKEN`), not in the URL. The token-less
+  `/melden` picker is the shared-link fallback — and the primary flow at Sola 26 so far (**no QR
+  labels printed yet**; planned mid-camp). Per-tent A5 label PDFs + a `/melden` info poster PDF
+  generate client-side in the manager UI; `scripts/generate-tent-qr.mjs` still emits raw QR SVGs.
+- **Manager login:** `gian.ledergerber@gmail.com` at `/verwalten/anmelden` (signup is invite-only;
+  a second account for the Materialwart is still to be created).
 - **Keep-alive:** Cloudflare Worker `zelt-keepalive` (cron `0 6 * * *`) pings an anon `categories`
-  read daily so the seasonal free-tier Supabase project doesn't auto-pause. Source in `keepalive/`.
-- **2026-06-27 — component-first damage form shipped:** the reporter now picks a component
-  (Aussenzelt/Innenzelt/Vorzelt/Stangen/Heringe/Sonstiges) then damage modes from that component's
-  submenu (see the taxonomy decision below). Migration `0003` (split `component` + `damage_kind`
-  columns) pushed, both functions redeployed, front-end redeployed, and **all cloud damage history
-  cleared** (damages + the orphaned demo photo) — every tent reads "In Ordnung".
-- **2026-06-28 — camp-grouped tent overview (deployed):** the
-  reporter picker and the manager grid now group tents by an editable `camp_group` (this camp: 1–4
-  Leiter*innenzelter, 5 Venner*innenzelt, 6–11 TN-Zelter), with 12–20 marked `out_of_service` and
-  rendered dimmed under a trailing "Nicht im Lager" section. DB-backed (migration `0004`:
-  `camp_group` column, anon-readable `tent_groups` view, `camp_group` added to `tent_overview`) and
-  manager-editable at `/verwalten/lager`. `npm run check`/`build` pass and the anon read path was
-  proven against the local stack (anon reads `tent_groups`; denied on `tents`/`damages` directly).
-  **Pushed to cloud 2026-06-28 (migration `0004`); uncommitted in git.**
-- **2026-06-28 — damage-form features (deployed):** two new
-  Innenzelt modes (`reissverschluss_defekt` "Reissverschluss defekt", `boden_gerissen` "Boden
-  gerissen"); the reporter URL simplified to a **token-less** `/zelt/<id>` (the shared secret moved
-  out of the QR path into the app bundle as `PUBLIC_REPORTER_TOKEN`, so rotating it never reprints
-  QRs); a **required reporter name** (remembered in `localStorage`, stamped per row); **per-damage**
-  photos and an always-available comment (replacing the single per-submission photo and the
-  Sonstiges-only text box); and a **camp name** stamped onto every row server-side from a
-  `CURRENT_CAMP` function env (e.g. "Sola 26"). Migration `0005_reporter_camp.sql` adds `reporter_name`
-  + `camp` to `damages`. **Deployed to cloud 2026-06-28** (schema + functions + `CURRENT_CAMP` secret +
-  Pages); the 14 pre-existing reports were backfilled to `reporter_name='Gromit'`, `camp='Sola 26'`,
-  and the shared tent 3 & 5 photos pinned to their `stoff_gerissen` rows. End-to-end write verified on
-  prod (new mode accepted + camp stamped). **Uncommitted in git.**
+  read on **both prod and staging** daily so neither free-tier project auto-pauses. Source in
+  `keepalive/`; deployed manually (`npx wrangler deploy -c keepalive/wrangler.jsonc`) — not in CI.
+- **Verified in production:** reporter submit incl. the **photo path** (client EXIF-strip →
+  `melden` upload → manager signed-URL view) confirmed with real reports during Sola 26
+  (2026-07-02). The offline outbox is exercised by the Playwright E2E in CI on every PR.
 
-- **2026-06-29 — manager overview features (deployed):** four front-end additions to the manager
-  area (no schema/function changes — all read existing `damages`/`tent_overview`): (1) a fleet-wide
-  **Reparaturliste** (`/verwalten/reparaturen`) — every open damage as a flat, sortable triage queue,
-  default sort **by severity** (`severity(component, kind)` appended to `damage-types.ts`:
-  Aussenzelt/Innenzelt/Stangen structural failures = `hoch`, `heringe/fehlt` = `niedrig`, rest =
-  `mittel`; oldest-first tiebreak), with Status + Komponente filters, inline resolve/dismiss, and
-  photo thumbnails; (2) a **summary KPI strip** atop the fleet grid (Einsatzbereit / Reparatur nötig /
-  Ausser Betrieb / Offene Schäden -> links to the worklist); (3) the tent-detail resolve/dismiss moved
-  to **inline forms** (no browser `prompt()`/`confirm()`) plus a **bulk "alle erledigen"**; (4) the
-  old Material page **replaced by a Statistik page** (`/verwalten/statistik`, **Chart.js**) — five
-  sections (Uebersicht incl. oe Reparaturzeit, Nach Komponente, Nach Zelt, Nach Schadenstyp [the
-  former procurement breakdown + a Nur-offene/Alle toggle], Pro Saison), a page-level Saison filter,
-  counting open+resolved and excluding `invalid`. Nav is now Flotte / Reparaturen / Statistik. Added
-  the `chart.js` dependency. Built by parallel **Sonnet** agents in isolated worktrees, merged to
-  `main`, `npm run check`/`build` green, and **deployed to Cloudflare Pages** (https://zelt.pages.dev).
+**Feature surface (all deployed):** reporter per-tent status page + component-first damage form
+(component → modes, per-item photo/comment/Anzahl, required remembered reporter name,
+server-stamped camp) with offline outbox, plus the grouped `/melden` picker; manager fleet grid
+(camp groups + KPI strip), tent detail (inline resolve/dismiss, bulk "alle erledigen", A5 label
+PDF, service toggle), `/verwalten/reparaturen` severity-sorted repair worklist,
+`/verwalten/statistik` (Chart.js; sums Anzahl for count modes), `/verwalten/lager` (bulk camp
+layout + add/remove/retire tents), printable `/melden` info poster.
 
-**Not yet done:** the photo and offline-sync paths are written but not yet exercised in a browser
-**against the cloud**; no automated tests; the 2026-06-27 component-first redesign is deployed but
-uncommitted in git. See "Status — what's left" below.
+**Open items** live in "Status — what's left" below (mid-camp: labels + second manager account;
+post-camp: the repair-day verdict drives the roadmap).
 
 `README.md` holds both runbooks (cloud and local). Local dev runs on **Colima + local Supabase**;
 the cloud values live in `.env.production` (used by `npm run build`), local in `.env` — see Commands.
@@ -93,6 +67,7 @@ the cloud values live in `.env.production` (used by `npm run build`), local in `
     Secrets: `supabase secrets set REPORTER_TOKEN=…` and `supabase secrets set CURRENT_CAMP="Sola 26"`
     (the camp stamped onto new reports; change it per camp).
   - Front-end: `npm run build && npx wrangler pages deploy build --project-name=zelt --branch=main`.
+    **`git pull` first** — this ships the local checkout; a stale laptop deploys a rollback.
   - Keep-alive Worker: `npx wrangler deploy -c keepalive/wrangler.jsonc`; watch with
     `npx wrangler tail zelt-keepalive`.
 - Two Colima gotchas already handled in-repo: `[analytics] enabled = false` in `config.toml` (its
@@ -112,7 +87,10 @@ the cloud values live in `.env.production` (used by `npm run build`), local in `
   `camp-groups.ts` (`groupTents()` — buckets tents into camp sections by `camp_group`, ordered by
   lowest tent #, trailing "Nicht im Lager"; shared by the picker + manager grid), `tent-info.ts`
   (public single-tent status read), `photo.ts` (canvas downscale + EXIF strip), `outbox.ts`
-  (IndexedDB queue via `idb`), `submit.ts` (network-first submit + `flushOutbox`).
+  (IndexedDB queue via `idb`), `submit.ts` (network-first submit + `flushOutbox`), `tents.ts`
+  (fleet lifecycle: hard-delete only for tents without damage history, else retire),
+  `tent-label.ts` (per-tent A5 label PDF; `jspdf`/`qrcode` lazy-loaded on click),
+  `info-poster.ts` (printable `/melden` info poster PDF).
 - `src/routes/zelt/[id]/` — **public per-tent page** (status + component-first report form), the
   canonical reporter flow reached by the per-tent QR. The reporter token is no longer a URL segment —
   it's read from the bundled `REPORTER_TOKEN` (`config.ts`). The `TentModel` SVG diagram is **not** used
@@ -133,6 +111,11 @@ the cloud values live in `.env.production` (used by `npm run build`), local in `
   `tents`, so anon reads only the three layout columns); seeds the current camp.
   `0005_reporter_camp.sql` — `reporter_name` + `camp` columns on `damages` (both nullable, additive)
   + a `camp` index; the German label still lives in `category_labels`.
+  `0006_anon_grant_fence.sql` — makes the anon column fence on `tents` deterministic (REVOKEs broad
+  default grants before the column grant; fixed a fresh-project/staging leak).
+  `0007_tent_lifecycle.sql` — `retired` flag + growable fleet (hard-delete only for tents without
+  damage history, retire otherwise; `tent_overview` hides retired tents).
+  `0008_vor_sola_camp.sql` — one-time relabel of the pre-camp inspection history to camp `VOR SOLA`.
 - `supabase/functions/melden/` — guarded public submit (Deno): token gate, rate limit; one
   submission inserts one row per damage item, idempotent upsert by `report_id`; a **per-item** photo
   (multipart part `photo_<report_id>` → `<report_id>.jpg`, ≤4 MB each / ≤10 MB total) and stamps
@@ -147,27 +130,21 @@ Key invariant: anonymous reporters never touch `damages` directly — writes go 
 fenced by a **column-level** anon grant + a `for select to anon` policy on `tents`, so the
 manager-only `notes`/`acquired_on` stay hidden even though RLS itself is row-level.
 
-### Status — what's left (as of 2026-06-27)
+### Status — what's left (as of 2026-07-02)
 
-- **✅ Deployed to production** (2026-06-22): cloud Supabase + Cloudflare Pages + real
-  `REPORTER_TOKEN` + first manager account + QR generated + keep-alive Worker. See "Current state".
-  Smoke-tested via curl: app routes (incl. the reporter deep link via the `_redirects` SPA
-  fallback) and the `melden` function (OPTIONS 200, wrong-token 401) all respond correctly.
-- **✅ Component-first damage form (2026-06-27):** redesigned reporter (pick component → damage
-  modes), `component`/`damage_kind` column split (`0003`), `melden`/`zelt-info` updated. Type-checks;
-  smoke-tested end-to-end on the local stack (insert, idempotency, invalid-pair reject, read-back);
-  deployed to cloud. Not yet driven in a browser **against the cloud**, and **uncommitted in git**.
-- **Verify in a browser against the cloud (built but unproven):** (1) the offline outbox — go
-  offline in DevTools, submit, return online, confirm it syncs; (2) the photo path end-to-end —
-  client EXIF-strip → function upload → manager signed-URL view. Still the two riskiest "written
-  but unrun" paths; the curl smoke test does not cover them.
-- **✅ Cloud history cleared (2026-06-27):** all `damages` rows + the orphaned demo photo removed;
-  every tent reads "In Ordnung", clean for a real camp. Still open: consider rotating `REPORTER_TOKEN`
-  if it's been shared anywhere insecure, and pointing the QR at a redirect you control so future
-  rotations don't require reprinting.
-- **Polish / nice-to-have:** PNG maskable icons (only an SVG today); a few tests (status
-  computation, idempotency, outbox); manager-created reports; CSV export for J+S. None block the
-  core flows.
+- **Mid-camp (Sola 26 runs now; feature freeze — fixes only):** print + mount the per-tent QR
+  labels (tooling shipped, paper pending); create the Materialwart's manager account (Supabase
+  invite — needed for the post-camp repair day).
+- **Data caveat (2026-07-01):** report `17750d6c…` (tent 10, Reissverschluss, filed 07-01 10:47)
+  reads `camp='VOR SOLA'` although it was inserted **after** migration `0008` ran on prod
+  (06-30 13:46, per CI logs) and `CURRENT_CAMP` has verifiably been "Sola 26" since 06-28 — so it
+  was almost certainly hand-edited afterwards (Studio/SQL). If unintended, relabel it back to
+  "Sola 26". The 14 setup-day (06-27) inspection rows are `VOR SOLA` **by design** (`0008`).
+- **Post-camp — the test-run verdict:** does the repair day actually run off Reparaturliste +
+  Statistik, and are parts ordered from it? Feature candidates *after* that verdict (demand-driven,
+  not before): CSV export for J+S, manager-created reports, a single-source damage taxonomy shared
+  with `melden` (today hand-mirrored), photo retention policy, PNG maskable icons,
+  `REPORTER_TOKEN` rotation (+ QRs pointing at a redirect so rotations never reprint).
 
 ## Pipeline & contribution workflow
 
@@ -280,10 +257,12 @@ These supersede the SRS where they conflict:
   component** (Aussenzelt = outer tent/flysheet, Innenzelt = inner tent, Vorzelt = porch/vestibule,
   Stangen = poles, Heringe = pegs/tent stakes, Sonstiges = other/miscellaneous), then one or more
   **damage modes** from that component's own submenu. Modes are a shared vocabulary
-  (`stoff_gerissen`, `abspannung_gerissen`, `aufhaengung_gerissen`, `schnur_aussenzelt_gerissen`,
-  `oese_kaputt`, `reissverschluss_defekt`, `boden_gerissen`, `verbogen`, `fehlt`, `sonstiges`); each
-  component offers a curated subset (Innenzelt gained `reissverschluss_defekt` + `boden_gerissen` on
-  2026-06-28). `fehlt` is exclusive (the whole part is gone); other modes multi-select; cord modes +
+  (`stoff_gerissen`, `abspannung_gerissen`, `abspannung_haken_defekt`, `aufhaengung_gerissen`,
+  `schnur_aussenzelt_gerissen`, `oese_kaputt`, `reissverschluss_defekt`, `boden_gerissen`,
+  `verbogen`, `fehlt`, `sonstiges`); each component offers a curated subset (Innenzelt gained
+  `reissverschluss_defekt` + `boden_gerissen` on 2026-06-28; `abspannung_haken_defekt` sits on
+  Aussenzelt + Vorzelt, count-carrying — added 2026-06-30, moved off Innenzelt 2026-07-02).
+  `fehlt` is exclusive (the whole part is gone); other modes multi-select; cord modes +
   `oese_kaputt` + Heringe-`fehlt` carry a count (Anzahl). **Every selected mode also carries an
   optional free-text comment and an optional photo, both per item** (2026-06-28; replaced the single
   per-submission photo and the Sonstiges-only text box); `sonstiges` is the one mode whose comment is
@@ -304,8 +283,8 @@ These supersede the SRS where they conflict:
   two-audience boundary. The reporter outbox stays custom client code.
   - **Free-tier caveat:** Supabase pauses a free project after ~1 week of inactivity. This app is
     seasonal, so expect pauses between camps. **Mitigated** by the `zelt-keepalive` Cloudflare
-    Worker (daily cron pings an anon `categories` read). It keeps the project from pausing on
-    *inactivity*; it does not help if the project is manually paused or hits free-tier limits.
+    Worker (daily cron pings an anon `categories` read on prod and staging). It keeps the projects
+    from pausing on *inactivity*; it does not help against manual pauses or free-tier limits.
 - **Multiple manager accounts** (not a shared passphrase): Supabase Auth email/password with
   **invite-only / closed signup** (public signup would void the access boundary). `resolved_by` on
   each resolution references the acting manager's user id.

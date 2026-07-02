@@ -20,6 +20,9 @@ node_modules
 !.claude/commands/feature.md
 !.claude/settings.json
 
+# aider scratch (local AI-assistant experiments)
+.aider*
+
 # Test artifacts
 /test-results
 /playwright-report
