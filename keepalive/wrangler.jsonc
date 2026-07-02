@@ -18,6 +18,10 @@
 		"SUPABASE_URL": "https://kzlmbkadbzfhqzhaupiu.supabase.co",
 		// The public anon key (same one baked into the client build). Reads only active categories,
 		// which RLS already exposes to anon — nothing sensitive here.
-		"SUPABASE_ANON_KEY": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imt6bG1ia2FkYnpmaHF6aGF1cGl1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODIxMzAzMzcsImV4cCI6MjA5NzcwNjMzN30.DJzfLrE24CFQM_J-GWLVjcjVrqYtJKpMu3YcrVCnVMA"
+		"SUPABASE_ANON_KEY": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imt6bG1ia2FkYnpmaHF6aGF1cGl1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODIxMzAzMzcsImV4cCI6MjA5NzcwNjMzN30.DJzfLrE24CFQM_J-GWLVjcjVrqYtJKpMu3YcrVCnVMA",
+		// Staging pauses independently of prod — and a paused staging breaks the CI preview
+		// builds and the staging-first `supabase db push` in deploy-prod. Same anon-key logic.
+		"STAGING_SUPABASE_URL": "https://lcfmxoaejtlnxtczenqu.supabase.co",
+		"STAGING_SUPABASE_ANON_KEY": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxjZm14b2FlanRsbnh0Y3plbnF1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI3NjE0MDcsImV4cCI6MjA5ODMzNzQwN30.CBjKmndW4VBhfwVTuY5Mlz4eALICi9V_ZptfXsGEWLg"
 	}
 }
