@@ -197,34 +197,22 @@
 
 <main>
 	<p><a href="/verwalten">← Übersicht</a></p>
-	<h1>Zelt {tentId}</h1>
+	<div class="head">
+		<h1>Zelt {tentId}</h1>
+		<div class="head-actions">
+			<button class="secondary btn" onclick={makeLabel} disabled={labelBusy}>
+				{labelBusy ? 'Wird erstellt…' : 'QR'}
+			</button>
+			<button class="secondary btn" onclick={toggleService} disabled={loading}>
+				{tent?.out_of_service ? 'Wieder in Betrieb' : 'Ausser Betrieb setzen'}
+			</button>
+		</div>
+	</div>
 	{#if errorMsg}<div class="banner err">{errorMsg}</div>{/if}
 
 	{#if loading}
 		<p class="muted">Laden…</p>
 	{:else}
-		<div class="service-row">
-			<button class="secondary qr-btn" onclick={makeLabel} disabled={labelBusy}>
-				{labelBusy ? 'Wird erstellt…' : 'QR'}
-			</button>
-			<div class="card service">
-				<div>
-					<strong>{tent?.out_of_service ? 'Ausser Betrieb' : 'In Betrieb'}</strong>
-					<p class="muted" style="margin: 0.25rem 0 0;">
-						{#if tent?.out_of_service}
-							Manuell ausser Betrieb gesetzt (z. B. eingelagert oder in Reparatur).
-						{:else}
-							Einsatzbereit. Bei Bedarf manuell ausser Betrieb setzen (z. B. eingelagert oder in
-							Reparatur).
-						{/if}
-					</p>
-				</div>
-				<button class={tent?.out_of_service ? 'danger' : 'secondary'} onclick={toggleService}>
-					{tent?.out_of_service ? 'Wieder in Betrieb' : 'Ausser Betrieb setzen'}
-				</button>
-			</div>
-		</div>
-
 		<h2>Schadensverlauf</h2>
 
 		{#if openDamages.length >= 2}
@@ -431,24 +419,27 @@
 </main>
 
 <style>
-	.service-row {
+	.head {
 		display: flex;
-		align-items: stretch;
-		gap: 0.75rem;
-	}
-	.qr-btn {
-		flex: 1 1 0;
-		min-height: 44px;
-	}
-	.service {
-		flex: 1 1 0;
-		display: flex;
-		flex-direction: column;
+		align-items: center;
 		justify-content: space-between;
-		gap: 0.75rem;
+		gap: 1rem;
+		margin-bottom: 1.25rem;
 	}
-	.service button {
-		min-height: 44px;
+	.head-actions {
+		display: flex;
+		gap: 0.5rem;
+	}
+	.btn {
+		text-decoration: none;
+		min-height: 40px;
+		display: inline-flex;
+		align-items: center;
+		padding: 0 0.9rem;
+		border-radius: var(--radius);
+		font-weight: 600;
+		white-space: nowrap;
+		cursor: pointer;
 	}
 	.row {
 		display: flex;
