@@ -61,8 +61,8 @@ const fehlt = (input: DamageInput = 'none'): DamageMode => ({ kind: 'fehlt', lab
 
 export const COMPONENTS: Component[] = [
 	{ component: 'aussenzelt', label: 'Aussenzelt', modes: [STOFF, ABSPANNUNG, ABSPANNUNG_HAKEN, OESE, fehlt(), SONSTIGES] },
-	{ component: 'innenzelt', label: 'Innenzelt', modes: [STOFF, AUFHAENGUNG, ABSPANNUNG_HAKEN, SCHNUR_AUSSEN, REISSVERSCHLUSS, BODEN, fehlt(), SONSTIGES] },
-	{ component: 'vorzelt', label: 'Vorzelt', modes: [STOFF, ABSPANNUNG, OESE, fehlt(), SONSTIGES] },
+	{ component: 'innenzelt', label: 'Innenzelt', modes: [STOFF, AUFHAENGUNG, SCHNUR_AUSSEN, REISSVERSCHLUSS, BODEN, fehlt(), SONSTIGES] },
+	{ component: 'vorzelt', label: 'Vorzelt', modes: [STOFF, ABSPANNUNG, ABSPANNUNG_HAKEN, OESE, fehlt(), SONSTIGES] },
 	{ component: 'stangen', label: 'Stangen', modes: [VERBOGEN, fehlt()] },
 	{ component: 'heringe', label: 'Heringe', modes: [fehlt('count')] },
 	{ component: 'sonstiges', label: 'Sonstiges', modes: [SONSTIGES] }
