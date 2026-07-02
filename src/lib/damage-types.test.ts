@@ -54,16 +54,16 @@ describe('isValidDamage', () => {
 		expect(isValidDamage('innenzelt', 'reissverschluss_defekt')).toBe(true);
 	});
 
-	it('accepts the new Abspannung-Haken mode on both Aussenzelt and Innenzelt', () => {
+	it('accepts the new Abspannung-Haken mode on both Aussenzelt and Vorzelt', () => {
 		expect(isValidDamage('aussenzelt', 'abspannung_haken_defekt')).toBe(true);
-		expect(isValidDamage('innenzelt', 'abspannung_haken_defekt')).toBe(true);
+		expect(isValidDamage('vorzelt', 'abspannung_haken_defekt')).toBe(true);
 	});
 
 	it('rejects modes a component does not offer, and unknown components', () => {
 		expect(isValidDamage('heringe', 'stoff_gerissen')).toBe(false);
 		expect(isValidDamage('stangen', 'oese_kaputt')).toBe(false);
 		expect(isValidDamage('nonsense', 'fehlt')).toBe(false);
-		expect(isValidDamage('vorzelt', 'abspannung_haken_defekt')).toBe(false);
+		expect(isValidDamage('innenzelt', 'abspannung_haken_defekt')).toBe(false);
 	});
 });
 

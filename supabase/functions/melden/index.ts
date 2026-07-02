@@ -24,8 +24,8 @@ const MAX_ITEMS = 20; // one tent has only so many distinct things to report at 
 // Allowed (component → damage_kind) pairs — must stay in sync with src/lib/damage-types.ts.
 const VALID: Record<string, Set<string>> = {
 	aussenzelt: new Set(['stoff_gerissen', 'abspannung_gerissen', 'abspannung_haken_defekt', 'oese_kaputt', 'fehlt', 'sonstiges']),
-	innenzelt: new Set(['stoff_gerissen', 'aufhaengung_gerissen', 'abspannung_haken_defekt', 'schnur_aussenzelt_gerissen', 'reissverschluss_defekt', 'boden_gerissen', 'fehlt', 'sonstiges']),
-	vorzelt: new Set(['stoff_gerissen', 'abspannung_gerissen', 'oese_kaputt', 'fehlt', 'sonstiges']),
+	innenzelt: new Set(['stoff_gerissen', 'aufhaengung_gerissen', 'schnur_aussenzelt_gerissen', 'reissverschluss_defekt', 'boden_gerissen', 'fehlt', 'sonstiges']),
+	vorzelt: new Set(['stoff_gerissen', 'abspannung_gerissen', 'abspannung_haken_defekt', 'oese_kaputt', 'fehlt', 'sonstiges']),
 	stangen: new Set(['verbogen', 'fehlt']),
 	heringe: new Set(['fehlt']),
 	sonstiges: new Set(['sonstiges'])
