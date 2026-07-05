@@ -44,10 +44,14 @@
 		chosen = n;
 	}
 
-	// X-ray: auto-on as soon as an interior sub-part carries damage; manual toggle on top.
+	// X-ray: auto-on when interior damage APPEARS (edge-triggered, not re-forced on every change,
+	// so a manual off stays off until the next new interior damage); manual toggle on top.
 	let xray = $state(false);
+	let hadInterior = false;
 	$effect(() => {
-		if (hasInteriorDamage(liveOpen)) xray = true;
+		const now = hasInteriorDamage(liveOpen);
+		if (now && !hadInterior) xray = true;
+		hadInterior = now;
 	});
 
 	// ── Report prototype: tap → component menu with suggested mode ───────────
@@ -190,12 +194,16 @@
 		align-items: center;
 		gap: 0.5rem;
 	}
+	/* The global button style is white-on-green; these quiet buttons need their color re-set. */
 	.close {
 		border: 1px solid var(--border);
 		background: var(--surface);
+		color: var(--text);
 		border-radius: 8px;
 		padding: 0.25rem 0.6rem;
+		min-height: 0;
 		font-size: 0.8rem;
+		font-weight: 400;
 		cursor: pointer;
 	}
 	.modes {
@@ -212,7 +220,9 @@
 		border: 1px solid var(--border);
 		border-radius: 8px;
 		background: var(--surface);
+		color: var(--text);
 		font-size: 0.9rem;
+		font-weight: 400;
 		text-align: left;
 		cursor: pointer;
 	}

@@ -81,6 +81,13 @@ export const INTERIOR_SUBPARTS: ReadonlySet<SubPartKey> = new Set<SubPartKey>([
 	'innenzelt_schnuere'
 ]);
 
+/** The exterior fabric shells that occlude the interior — the x-ray view ghosts exactly these.
+ *  Lives here (not in the WebGL code) so the sync tests can hold it against INTERIOR_SUBPARTS. */
+export const SHELL_SUBPARTS: ReadonlySet<SubPartKey> = new Set<SubPartKey>([
+	'aussenzelt_stoff',
+	'vorzelt_stoff'
+]);
+
 const byComponent = new Map<ComponentKey, SubPartKey[]>();
 const byPair = new Map<string, SubPartKey>();
 for (const key of ALL_SUBPARTS) {

@@ -10,7 +10,7 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import type { Severity, SubPartKey } from './parts';
-import { SUBPART_LABELS } from './parts';
+import { SHELL_SUBPARTS } from './parts';
 
 export interface TentScene {
 	setStates(states: Partial<Record<SubPartKey, Severity>>): void;
@@ -196,14 +196,16 @@ export function createTentScene(canvas: HTMLCanvasElement): TentScene {
 		}
 	}
 	{
-		// 10 connecting cords Innenzelt ↔ Aussenzelt hem, 5 per side.
+		// 10 connecting cords Innenzelt ↔ Aussenzelt hem, 5 per side. The outer end (and its fat
+		// pick proxy) must stay INSIDE the Aussenzelt plane (y = 2.05 − ~0.909·x), or this interior
+		// sub-part pokes out near the hem and steals taps meant for the Ösen/Haken hardware there.
 		const m = mat('innenzelt_schnuere', COL.cord);
 		for (const s of [1, -1]) {
 			for (const z of [-1.4, -0.7, 0, 0.7, 1.3]) {
 				const a = V(s * IW, 0.22, z);
-				const b = V(s * (W - 0.02), 0.09, z);
+				const b = V(s * (W - 0.12), 0.1, z); // fabric y at x=2.08 is ~0.16 — cord end well inside
 				part('innenzelt_schnuere').group.add(tube(a, b, 0.012, m));
-				addProxy('innenzelt_schnuere', tube(a, b, 0.07, proxyMat));
+				addProxy('innenzelt_schnuere', tube(a, b, 0.05, proxyMat));
 			}
 		}
 	}
@@ -305,7 +307,7 @@ export function createTentScene(canvas: HTMLCanvasElement): TentScene {
 	let states: Partial<Record<SubPartKey, Severity>> = {};
 	let selected: SubPartKey | null = null;
 	let xray = false;
-	const GHOSTABLE = new Set<SubPartKey>(['aussenzelt_stoff', 'vorzelt_stoff']);
+	const GHOSTABLE = SHELL_SUBPARTS; // owned by parts.ts so the sync tests cover it
 
 	function apply() {
 		for (const [key, entry] of parts) {
@@ -331,34 +333,38 @@ export function createTentScene(canvas: HTMLCanvasElement): TentScene {
 				}
 			}
 		}
-		requestRender();
+		requestRender(); // a static tint change needs a frame or two, not a damping tail
 	}
 
 	// ── Render on demand: keep the loop alive only while something moves ───────
+	// Damping self-sustains: controls.update() emits 'change' while the camera still moves, and
+	// each 'change' tops framesLeft back up — so a short default suffices and the loop dies as
+	// soon as the scene is truly static (battery matters on camp phones).
 	let framesLeft = 0;
 	let rafId = 0;
 	let disposed = false;
 	function frame() {
-		rafId = 0;
 		if (disposed) return;
 		controls.update();
 		renderer.render(scene, camera);
 		if (--framesLeft > 0) rafId = requestAnimationFrame(frame);
+		else rafId = 0;
 	}
-	function requestRender(frames = 45) {
-		framesLeft = Math.max(framesLeft, frames); // ~0.75s covers the damping tail
+	function requestRender(frames = 2) {
+		framesLeft = Math.max(framesLeft, frames);
 		if (!rafId) rafId = requestAnimationFrame(frame);
 	}
 	controls.addEventListener('change', () => requestRender());
-	controls.addEventListener('start', () => requestRender(120));
+	controls.addEventListener('start', () => requestRender(30));
 
 	function resize() {
+		renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2)); // re-read: window may move displays
 		const w = canvas.clientWidth || 1;
 		const h = canvas.clientHeight || 1;
 		renderer.setSize(w, h, false);
 		camera.aspect = w / h;
 		camera.updateProjectionMatrix();
-		requestRender(2);
+		requestRender();
 	}
 	resize();
 	apply();
@@ -379,8 +385,11 @@ export function createTentScene(canvas: HTMLCanvasElement): TentScene {
 		for (const hit of raycaster.intersectObjects(pickables, true)) {
 			const key = subpartOf(hit.object);
 			if (!key) continue;
-			// In the x-ray view the ghost shells shouldn't swallow taps meant for the interior.
-			if (xray && GHOSTABLE.has(key)) continue;
+			// In the x-ray view the ghost shells shouldn't swallow taps meant for the interior —
+			// but a 'missing' shell is still rendered as a solid-ish red ghost (apply() skips the
+			// x-ray fade for it), so it stays tappable; skipping it would make visible damage
+			// unselectable.
+			if (xray && GHOSTABLE.has(key) && states[key] !== 'missing') continue;
 			return key;
 		}
 		return null;
@@ -419,9 +428,4 @@ export function createTentScene(canvas: HTMLCanvasElement): TentScene {
 			renderer.dispose();
 		}
 	};
-}
-
-/** German aria/label for a sub-part — re-exported so UI code can import from one place. */
-export function subPartLabel(key: SubPartKey): string {
-	return SUBPART_LABELS[key];
 }

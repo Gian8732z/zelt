@@ -4,6 +4,7 @@ import type { OpenDamage } from '../tent-info';
 import {
 	ALL_SUBPARTS,
 	INTERIOR_SUBPARTS,
+	SHELL_SUBPARTS,
 	SUBPART_LABELS,
 	SUBPART_TARGETS,
 	computeSubPartStates,
@@ -56,6 +57,14 @@ describe('SUBPART_TARGETS stays in sync with the damage taxonomy', () => {
 
 	it('every sub-part has a German label', () => {
 		for (const key of ALL_SUBPARTS) expect(SUBPART_LABELS[key]).toBeTruthy();
+	});
+
+	it('shell sub-parts are exterior body fabrics, disjoint from the interior set', () => {
+		for (const key of SHELL_SUBPARTS) {
+			expect(SUBPART_TARGETS[key].kind, key).toBeNull();
+			expect(INTERIOR_SUBPARTS.has(key), key).toBe(false);
+		}
+		expect(SHELL_SUBPARTS.size).toBeGreaterThan(0);
 	});
 });
 
