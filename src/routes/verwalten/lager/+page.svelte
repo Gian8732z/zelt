@@ -2,6 +2,7 @@
 	import { onMount } from 'svelte';
 	import { getSupabase } from '$lib/supabase';
 	import { downloadInfoPoster } from '$lib/info-poster';
+	import { downloadAllTentLabels, inCampLabelTentIds } from '$lib/tent-label';
 
 	// Once-per-camp setup: assign each tent to a group and flag the ones sitting in storage as
 	// "Ausser Betrieb". A blank group + out-of-service renders a tent in the dimmed "Nicht im Lager"
@@ -10,6 +11,7 @@
 		tent_id: number;
 		camp_group: string; // '' = no group
 		out_of_service: boolean;
+		retired: boolean; // carried only to exclude retired tents from the bulk label sheet
 	}
 
 	let rows = $state<EditRow[]>([]);
@@ -24,6 +26,7 @@
 	const CAMP_KEY = 'zelt:poster-camp';
 	let camp = $state('Sola 26');
 	let generating = $state(false);
+	let labeling = $state(false);
 
 	async function generatePoster() {
 		generating = true;
@@ -32,6 +35,19 @@
 			await downloadInfoPoster(window.location.origin, camp);
 		} finally {
 			generating = false;
+		}
+	}
+
+	// Tents to print stickers for: those in the camp (not "Ausser Betrieb", not retired), from the
+	// on-screen rows so it matches what's shown even before Saving. Two labels stack per A4 page.
+	const labelTentIds = $derived(inCampLabelTentIds(rows));
+
+	async function generateLabels() {
+		labeling = true;
+		try {
+			await downloadAllTentLabels(labelTentIds, window.location.origin);
+		} finally {
+			labeling = false;
 		}
 	}
 
@@ -50,7 +66,7 @@
 		errorMsg = null;
 		const { data, error } = await sb
 			.from('tents')
-			.select('tent_id, camp_group, out_of_service')
+			.select('tent_id, camp_group, out_of_service, retired')
 			.order('tent_id');
 		loading = false;
 		if (error) {
@@ -60,7 +76,8 @@
 		rows = (data ?? []).map((t) => ({
 			tent_id: t.tent_id,
 			camp_group: t.camp_group ?? '',
-			out_of_service: t.out_of_service
+			out_of_service: t.out_of_service,
+			retired: t.retired ?? false
 		}));
 	}
 
@@ -108,7 +125,14 @@
 		<button class="secondary" onclick={generatePoster} disabled={generating}>
 			{generating ? 'Erstelle PDF…' : 'Info-Plakat (PDF)'}
 		</button>
-		<span class="muted hint">Erklärung + QR-Code zum Aushängen.</span>
+		<button
+			class="secondary"
+			onclick={generateLabels}
+			disabled={labeling || labelTentIds.length === 0}
+		>
+			{labeling ? 'Erstelle PDF…' : `Alle Etiketten (PDF, ${labelTentIds.length})`}
+		</button>
+		<span class="muted hint">Erklärung + QR-Code zum Aushängen. Etiketten: 2 pro A4-Seite.</span>
 	</div>
 
 	{#if errorMsg}<div class="banner err">{errorMsg}</div>{/if}
