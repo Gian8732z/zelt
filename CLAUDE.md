@@ -97,8 +97,9 @@ the cloud values live in `.env.production` (used by `npm run build`), local in `
   here — it's a local-only experiment (`src/lib/components/TentModel.svelte`, `tent-parts.ts`, route
   `/zelt-preview`), deliberately kept out of the shipped form. Its 3D pendant (2026-07-05) is likewise
   an unshipped experiment: `src/lib/tent3d/` (`parts.ts` sub-part↔taxonomy map, unit-tested;
-  `scene.ts` procedural three.js 8er Spatz, lazy-loaded **and excluded from the SW precache** via
-  workbox `maximumFileSizeToCacheInBytes` so reporter phones never download it) +
+  `scene.ts` procedural three.js 8er Spatz, lazy-loaded **and excluded from the SW precache** via a
+  workbox `manifestTransforms` size filter — not `maximumFileSizeToCacheInBytes`, whose warning
+  becomes a build error under `CI=true` — so reporter phones never download it) +
   `src/lib/components/Tent3D.svelte`,
   harness route `/zelt-3d` — every sub-part (fabric sheets, guy lines, hooks, eyelets, zipper,
   floor, Aufhängung, Innenzelt↔Aussenzelt strings, poles, pegs) is tappable and opens the component
