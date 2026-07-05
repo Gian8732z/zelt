@@ -22,8 +22,10 @@ history is the changelog** — this section holds only current facts.
 - **Reporter URL / QR target:** token-less per-tent URLs `https://zelt.pages.dev/zelt/<id>`; the
   shared secret is bundled in-app (`PUBLIC_REPORTER_TOKEN`), not in the URL. The token-less
   `/melden` picker is the shared-link fallback — and the primary flow at Sola 26 so far (**no QR
-  labels printed yet**; planned mid-camp). Per-tent A5 label PDFs + a `/melden` info poster PDF
-  generate client-side in the manager UI; `scripts/generate-tent-qr.mjs` still emits raw QR SVGs.
+  labels printed yet**; planned mid-camp). Per-tent A5 label PDFs, a **bulk "Alle Etiketten" A4
+  sheet** (two A5 labels stacked per page, all in-camp tents, from `/verwalten/lager`), and a
+  `/melden` info poster PDF generate client-side in the manager UI; `scripts/generate-tent-qr.mjs`
+  still emits raw QR SVGs.
 - **Manager login:** `gian.ledergerber@gmail.com` at `/verwalten/anmelden` (signup is invite-only;
   a second account for the Materialwart is still to be created).
 - **Keep-alive:** Cloudflare Worker `zelt-keepalive` (cron `0 6 * * *`) pings an anon `categories`
@@ -41,6 +43,11 @@ history is the changelog** — this section holds only current facts.
   Resend's `onboarding@resend.dev` sender, which **only delivers to the Resend account owner** until
   a sending domain is verified — fine while Gian is the sole manager; the Materialwart's address will
   need a verified domain (see Status).
+- **Bulk label sheet (shipped 2026-07-05):** `/verwalten/lager` has an "Alle Etiketten (PDF)" button
+  that emits one A4-portrait PDF with a QR label for every **in-camp** tent (on-screen rows that are
+  not "Ausser Betrieb" and not retired), **two A5-landscape labels stacked per page** (cut in half →
+  two labels). Single + bulk labels share one `drawLabel` (`tent-label.ts`); the QR shrank 30 %
+  (110 → 77 mm) on both to free room for the text block.
 
 **Feature surface (all deployed):** reporter per-tent status page + component-first damage form
 (component → modes, per-item photo/comment/Anzahl, required remembered reporter name,
@@ -99,7 +106,8 @@ the cloud values live in `.env.production` (used by `npm run build`), local in `
   (public single-tent status read), `photo.ts` (canvas downscale + EXIF strip), `outbox.ts`
   (IndexedDB queue via `idb`), `submit.ts` (network-first submit + `flushOutbox`), `tents.ts`
   (fleet lifecycle: hard-delete only for tents without damage history, else retire),
-  `tent-label.ts` (per-tent A5 label PDF; `jspdf`/`qrcode` lazy-loaded on click),
+  `tent-label.ts` (shared `drawLabel`: per-tent A5 label PDF + bulk A4 two-up sheet for all in-camp
+  tents via `downloadAllTentLabels`/`inCampLabelTentIds`; QR 77 mm; `jspdf`/`qrcode` lazy-loaded on click),
   `info-poster.ts` (printable `/melden` info poster PDF).
 - `src/routes/zelt/[id]/` — **public per-tent page** (status + component-first report form), the
   canonical reporter flow reached by the per-tent QR. The reporter token is no longer a URL segment —
@@ -118,7 +126,8 @@ the cloud values live in `.env.production` (used by `npm run build`), local in `
   the single shared link: a tent picker (grouped by `camp_group` read from `tent_groups`, cached to
   localStorage so a later offline open still renders the camp; cold cache offline → flat 1–20) that
   routes into the per-tent page. `src/routes/verwalten/` — manager area (`+layout.svelte` auth guard,
-  `anmelden/` login, `+page` fleet grid grouped by `camp_group`, `lager/` bulk camp-setup editor,
+  `anmelden/` login, `+page` fleet grid grouped by `camp_group`, `lager/` bulk camp-setup editor
+  (+ info-poster and bulk "Alle Etiketten" label-sheet PDF buttons),
   `zelt/[id]/` detail, `reparaturen/` fleet-wide repair worklist, `statistik/` Chart.js stats; the fleet `+page` also carries a summary KPI strip). Outbox flush is wired globally in the root `+layout.svelte`.
 - `supabase/migrations/0001_init.sql` — schema, RLS, `tent_overview` view, seeds, photo bucket.
   `0002_damage_structure.sql` — `damage_type` + `quantity` columns (the flat `damage_type` is
