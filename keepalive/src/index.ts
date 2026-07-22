@@ -1,7 +1,9 @@
-// Pings the Supabase REST API with the public anon key so the seasonal free-tier projects
-// register activity and do not auto-pause. A single, cheap read of one category row is
-// enough to count as a request. Runs on the daily cron (see wrangler.jsonc); the fetch
-// handler exposes the same pings over HTTP for manual verification.
+// Pings each seasonal free-tier Supabase project with the public anon key so it registers activity
+// and does not auto-pause. The ping is a WRITE (the heartbeat() RPC) — a daily anon read did NOT
+// count as activity for Supabase's pause scanner (both projects were flagged for pause despite a
+// month of successful daily reads); only a WAL-generating write counts. See migration
+// 0009_heartbeat.sql. Runs on the daily cron (see wrangler.jsonc); the fetch handler exposes the
+// same pings over HTTP for manual verification.
 //
 // Both projects need this independently — pause is per-project: prod serves the app, and
 // staging backs the per-PR previews plus the staging-first migration step of `deploy-prod`.
@@ -28,11 +30,16 @@ function targets(env: Env): Target[] {
 }
 
 async function ping(t: Target): Promise<{ name: string; status: number; ok: boolean }> {
-	const res = await fetch(`${t.url}/rest/v1/categories?select=id&limit=1`, {
+	// POST to the heartbeat() RPC — a write, so it generates WAL and reliably counts as activity.
+	// Returns 204 (void); res.ok covers the 2xx range.
+	const res = await fetch(`${t.url}/rest/v1/rpc/heartbeat`, {
+		method: 'POST',
 		headers: {
 			apikey: t.anonKey,
-			Authorization: `Bearer ${t.anonKey}`
-		}
+			Authorization: `Bearer ${t.anonKey}`,
+			'Content-Type': 'application/json'
+		},
+		body: '{}'
 	});
 	// Drain the body so the connection completes cleanly.
 	await res.text();
