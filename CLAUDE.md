@@ -8,14 +8,14 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 The mission is improving the Abteilung's tent **repair process** — camp reporting collects the
 data; the post-camp repair day (Reparaturliste + Statistik) is the payoff. SvelteKit (Svelte 5
 runes, TypeScript, SPA via `adapter-static`) + Supabase (Postgres, Auth, Storage, two Edge
-Functions), German-only UI. Schema is at migration `0008`; Vitest unit tests + Playwright E2E run
+Functions), German-only UI. Schema is at migration `0009`; Vitest unit tests + Playwright E2E run
 in CI on every PR. The app degrades to a "not configured" notice when env is absent. **Git
 history is the changelog** — this section holds only current facts.
 
 **Production:**
 - **App:** https://zelt.pages.dev (Cloudflare Pages, project `zelt`), deployed by CI on merge to
   `main` — see "Pipeline & contribution workflow".
-- **Supabase:** prod `kzlmbkadbzfhqzhaupiu` ("Zelt", eu-central-1) — schema through `0008`,
+- **Supabase:** prod `kzlmbkadbzfhqzhaupiu` ("Zelt", eu-central-1) — schema through `0009`,
   `melden` + `zelt-info` deployed, `REPORTER_TOKEN` + `CURRENT_CAMP` ("Sola 26") + `RESEND_API_KEY`
   (manager email notifications) secrets set. Staging `lcfmxoaejtlnxtczenqu` backs the per-PR preview
   deploys.
@@ -28,9 +28,13 @@ history is the changelog** — this section holds only current facts.
   still emits raw QR SVGs.
 - **Manager login:** `gian.ledergerber@gmail.com` at `/verwalten/anmelden` (signup is invite-only;
   a second account for the Materialwart is still to be created).
-- **Keep-alive:** Cloudflare Worker `zelt-keepalive` (cron `0 6 * * *`) pings an anon `categories`
-  read on **both prod and staging** daily so neither free-tier project auto-pauses. Source in
-  `keepalive/`; deployed manually (`npx wrangler deploy -c keepalive/wrangler.jsonc`) — not in CI.
+- **Keep-alive (write-ping since 2026-07-22):** Cloudflare Worker `zelt-keepalive` (cron `0 6 * * *`)
+  pings **both prod and staging** daily so neither free-tier project auto-pauses. The ping is a
+  **write** — it `POST`s the `heartbeat()` RPC (migration `0009`), because a read did **not** count as
+  activity for Supabase's pause scanner (both projects were flagged for pause 2026-07-18/19 despite a
+  month of successful daily anon `categories` reads; a WAL-generating write does count). Source in
+  `keepalive/`; deployed manually (`npx wrangler deploy -c keepalive/wrangler.jsonc`) — **not in CI**,
+  so any change to the RPC needs a manual Worker redeploy *after* it lands in both DBs.
 - **Verified in production:** reporter submit incl. the **photo path** (client EXIF-strip →
   `melden` upload → manager signed-URL view) confirmed with real reports during Sola 26
   (2026-07-02). The offline outbox is exercised by the Playwright E2E in CI on every PR.
@@ -144,6 +148,10 @@ the cloud values live in `.env.production` (used by `npm run build`), local in `
   `0007_tent_lifecycle.sql` — `retired` flag + growable fleet (hard-delete only for tents without
   damage history, retire otherwise; `tent_overview` hides retired tents).
   `0008_vor_sola_camp.sql` — one-time relabel of the pre-camp inspection history to camp `VOR SOLA`.
+  `0009_heartbeat.sql` — singleton `heartbeat` table + `SECURITY DEFINER heartbeat()` RPC (anon gets
+  `EXECUTE` only; table RLS-on with `revoke all from anon, authenticated` per the 0006 fence) as a
+  **write target for the keep-alive Worker** — a daily anon read did not count as Supabase "activity",
+  a write does.
 - `supabase/functions/melden/` — guarded public submit (Deno): token gate, rate limit; one
   submission inserts one row per damage item, idempotent upsert by `report_id`; a **per-item** photo
   (multipart part `photo_<report_id>` → `<report_id>.jpg`, ≤4 MB each / ≤10 MB total) and stamps
@@ -316,8 +324,9 @@ These supersede the SRS where they conflict:
   two-audience boundary. The reporter outbox stays custom client code.
   - **Free-tier caveat:** Supabase pauses a free project after ~1 week of inactivity. This app is
     seasonal, so expect pauses between camps. **Mitigated** by the `zelt-keepalive` Cloudflare
-    Worker (daily cron pings an anon `categories` read on prod and staging). It keeps the projects
-    from pausing on *inactivity*; it does not help against manual pauses or free-tier limits.
+    Worker (daily cron `POST`s the `heartbeat()` RPC — a **write** — on prod and staging; a read did
+    not count as activity, see migration `0009`). It keeps the projects from pausing on *inactivity*;
+    it does not help against manual pauses or free-tier limits.
 - **Multiple manager accounts** (not a shared passphrase): Supabase Auth email/password with
   **invite-only / closed signup** (public signup would void the access boundary). `resolved_by` on
   each resolution references the acting manager's user id.
